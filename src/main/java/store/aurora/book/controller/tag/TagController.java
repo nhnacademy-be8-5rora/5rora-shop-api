@@ -11,6 +11,7 @@ import store.aurora.book.dto.tag.TagRequestDto;
 import store.aurora.book.dto.tag.TagResponseDto;
 import store.aurora.book.service.tag.TagService;
 
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -49,6 +50,9 @@ public class TagController {
 
     @GetMapping("/search")
     public ResponseEntity<List<TagResponseDto>> searchTags(@RequestParam String keyword) {
+        if (keyword.isBlank()) {
+            return ResponseEntity.ok(Collections.emptyList()); // 빈 리스트 반환
+        }
         List<TagResponseDto> tags = tagService.searchTags(keyword);
         return ResponseEntity.ok(tags);
     }

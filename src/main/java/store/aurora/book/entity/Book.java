@@ -65,7 +65,7 @@ public class Book {
     @JoinColumn(name = "series_id")
     private Series series;
 
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookImage> bookImages = new ArrayList<>();
 
     public void addBookImage(BookImage bookImage) {
@@ -73,7 +73,7 @@ public class Book {
         bookImage.setBook(this);
     }
 
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookCategory> bookCategories = new ArrayList<>();
 
     public void addBookCategory(BookCategory bookCategory) {
@@ -88,7 +88,7 @@ public class Book {
         bookCategories.clear(); // 컬렉션 비우기
     }
 
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true,fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookTag> bookTags = new ArrayList<>();
 
     public void addBookTag(BookTag bookTag) {

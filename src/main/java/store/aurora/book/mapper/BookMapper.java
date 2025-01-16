@@ -7,7 +7,10 @@ import org.springframework.util.CollectionUtils;
 import store.aurora.book.dto.aladin.*;
 import store.aurora.book.entity.Book;
 import store.aurora.book.entity.BookImage;
+import store.aurora.book.entity.Publisher;
+import store.aurora.book.entity.Series;
 import store.aurora.book.entity.category.BookCategory;
+import store.aurora.book.entity.category.Category;
 import store.aurora.book.entity.tag.BookTag;
 import store.aurora.book.entity.tag.Tag;
 import store.aurora.book.service.BookAuthorService;
@@ -37,7 +40,7 @@ public class BookMapper {
         Book book = new Book();
         book.setTitle(bookDto.getTitle());
         book.setExplanation(bookDto.getDescription());
-        book.setContents(!StringUtils.isBlank(bookDto.getContents())? bookDto.getContents() : null);
+        book.setContents(!StringUtils.isBlank(bookDto.getContents()) ? bookDto.getContents() : null);
         book.setIsbn(bookDto.getIsbn13());
         book.setSalePrice(bookDto.getPriceSales());
         book.setRegularPrice(bookDto.getPriceStandard());
@@ -68,13 +71,14 @@ public class BookMapper {
             List<BookTag> bookTags = tagService.createBookTags(tags);
             bookTags.forEach(book::addBookTag);
         }
-            return book;
+        return book;
     }
+
     public Book toEntity(BookRequestDto bookDto) {
         Book book = new Book();
         book.setTitle(bookDto.getTitle());
         book.setExplanation(bookDto.getDescription());
-        book.setContents(!StringUtils.isBlank(bookDto.getContents())? bookDto.getContents() : null);
+        book.setContents(!StringUtils.isBlank(bookDto.getContents()) ? bookDto.getContents() : null);
         book.setIsbn(bookDto.getIsbn());
         book.setSalePrice(bookDto.getPriceSales());
         book.setRegularPrice(bookDto.getPriceStandard());
@@ -164,5 +168,41 @@ public class BookMapper {
                 .toList();
         bookDetailDto.setExistingAdditionalImages(additionalImages);
         return bookDetailDto;
+    }
+
+    public void updateEntityFromDto(Book book, BookRequestDto bookDto) {
+        book.setTitle(bookDto.getTitle());
+        book.setExplanation(bookDto.getDescription());
+        book.setContents(bookDto.getContents());
+        book.setIsbn(bookDto.getIsbn());
+        book.setSalePrice(bookDto.getPriceSales());
+        book.setRegularPrice(bookDto.getPriceStandard());
+        book.setPublishDate(bookDto.getPubDate());
+        book.setStock(bookDto.getStock());
+        book.setSale(bookDto.isSale());
+        book.setPackaging(bookDto.isPackaging());
+
+        // Publisher 업데이트
+        Publisher publisher = publisherService.getOrCreatePublisher(bookDto.getPublisher());
+        book.setPublisher(publisher);
+
+        // Series 업데이트
+        if (!StringUtils.isBlank(bookDto.getSeriesName())) {
+            Series series = seriesService.getOrCreateSeries(bookDto.getSeriesName());
+            book.setSeries(series);
+        }
+        // Category 업데이트
+        categoryService.updateBookCategories(book, bookDto.getCategoryIds());
+
+        // 태그 업데이트
+        if (!StringUtils.isBlank(bookDto.getTags())) {
+            List<Tag> tags = tagService.getOrCreateTagsByName(bookDto.getTags());
+            book.clearBookTags();
+            for (Tag tag : tags) {
+                BookTag bookTag = new BookTag();
+                bookTag.setTag(tag);
+                book.addBookTag(bookTag);
+            }
+        }
     }
 }

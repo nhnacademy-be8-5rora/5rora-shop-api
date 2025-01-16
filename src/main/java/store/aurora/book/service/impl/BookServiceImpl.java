@@ -2,7 +2,6 @@ package store.aurora.book.service.impl;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.querydsl.core.Tuple;
-import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,21 +16,13 @@ import store.aurora.book.dto.BookInfoDTO;
 import store.aurora.book.dto.ReviewDto;
 import store.aurora.book.dto.aladin.*;
 import store.aurora.book.entity.Book;
-import store.aurora.book.entity.Publisher;
-import store.aurora.book.entity.Series;
-import store.aurora.book.entity.category.BookCategory;
-import store.aurora.book.entity.category.Category;
-import store.aurora.book.entity.tag.BookTag;
-import store.aurora.book.entity.tag.Tag;
 import store.aurora.book.exception.book.IsbnAlreadyExistsException;
 import store.aurora.book.exception.book.NotFoundBookException;
 import store.aurora.book.entity.*;
 import store.aurora.book.exception.BookNotFoundException;
 import store.aurora.book.mapper.BookMapper;
 import store.aurora.book.repository.*;
-import store.aurora.book.repository.category.CategoryRepository;
 import store.aurora.book.service.*;
-import store.aurora.book.service.tag.TagService;
 import store.aurora.search.dto.BookSearchEntityDTO;
 import store.aurora.search.dto.BookSearchResponseDTO;
 import store.aurora.search.service.ElasticSearchService;
@@ -46,13 +37,9 @@ import static org.springframework.data.domain.Page.empty;
 public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final LikeRepository likeRepository;
-    private final TagService tagService;
     private final BookImageRepository bookImageRepository;
     private final BookAuthorService bookAuthorService;
     private final BookImageService bookImageService;
-    private final PublisherRepository publisherRepository;
-    private final SeriesRepository seriesRepository;
-    private final CategoryRepository categoryRepository;
     private final BookMapper bookMapper;
     private final ElasticSearchService elasticSearchService;
 
@@ -106,26 +93,21 @@ public class BookServiceImpl implements BookService {
                            List<Long> deleteImageIds) {
         // 1. 기존 책 정보 조회
         Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new IllegalArgumentException("Book not found with ID: " + bookId));
-
+                .orElseThrow(() -> new NotFoundBookException(bookId));
         // 2. 책 정보 업데이트
-        updateBookInfo(book, bookDto);
-
+        bookMapper.updateEntityFromDto(book, bookDto);
         // 3. 이미지 삭제 처리
         if (deleteImageIds != null && !deleteImageIds.isEmpty()) {
             bookImageService.deleteImages(deleteImageIds);
         }
-
         // 4. 커버 이미지 처리
         if (coverImage != null && !coverImage.isEmpty()) {
             bookImageService.handleImageUpload(book, coverImage, true);
         }
-
         // 5. 추가 이미지 처리
         if (additionalImages != null && !additionalImages.isEmpty()) {
             bookImageService.handleAdditionalImages(book, additionalImages);
         }
-
         // 6. 책 저장
         bookRepository.save(book);
     }
@@ -284,55 +266,9 @@ public class BookServiceImpl implements BookService {
         return bookSearchResponseDTOPage.getContent().isEmpty() ? Optional.empty() : Optional.ofNullable(bookSearchResponseDTOPage.getContent().getFirst());
     }
 
-
     // entity -> ResponseDto
     private BookResponseDto convertToDto(Book book) {
         return bookMapper.toResponseDto(book);
-    }
-
-    private void updateBookInfo(Book book, BookRequestDto bookDto) {
-        book.setTitle(bookDto.getTitle());
-        book.setExplanation(bookDto.getDescription());
-        book.setContents(bookDto.getContents());
-        book.setIsbn(bookDto.getIsbn());
-        book.setSalePrice(bookDto.getPriceSales());
-        book.setRegularPrice(bookDto.getPriceStandard());
-        book.setPublishDate(bookDto.getPubDate() != null ? bookDto.getPubDate() : null);
-        book.setStock(bookDto.getStock());
-        book.setSale(bookDto.isSale());
-        book.setPackaging(bookDto.isPackaging());
-
-        // Publisher 업데이트
-        Publisher publisher = publisherRepository.findByName(bookDto.getPublisher())
-                .orElseGet(() -> publisherRepository.save(new Publisher(bookDto.getPublisher())));
-        book.setPublisher(publisher);
-
-        // Series 업데이트
-        if (!bookDto.getSeriesName().isBlank()) {
-            Series series = seriesRepository.findByName(bookDto.getSeriesName())
-                    .orElseGet(() -> seriesRepository.save(new Series(bookDto.getSeriesName())));
-            book.setSeries(series);
-        }
-
-        // Category 업데이트
-        List<Category> categories = categoryRepository.findAllById(bookDto.getCategoryIds());
-        book.clearBookCategories(); // 기존 카테고리 제거
-        for (Category category : categories) {
-            BookCategory bookCategory = new BookCategory();
-            bookCategory.setCategory(category);
-            book.addBookCategory(bookCategory);
-        }
-
-        // 7. 태그 업데이트
-        if (StringUtils.isBlank(bookDto.getTags())) {
-            List<Tag> tags = tagService.getOrCreateTagsByName(bookDto.getTags());
-            book.clearBookTags();
-            for (Tag tag : tags) {
-                BookTag bookTag = new BookTag();
-                bookTag.setTag(tag);
-                book.addBookTag(bookTag);
-            }
-        }
     }
 
 }

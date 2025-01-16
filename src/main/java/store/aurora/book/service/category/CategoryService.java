@@ -3,6 +3,7 @@ package store.aurora.book.service.category;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import org.springframework.transaction.annotation.Transactional;
 import store.aurora.book.dto.category.CategoryRequestDTO;
 import store.aurora.book.dto.category.CategoryResponseDTO;
 import store.aurora.book.entity.Book;
@@ -22,5 +23,9 @@ public interface CategoryService {
     List<Book> getBooksByCategoryId(Long categoryId);
     CategoryResponseDTO findById(Long categoryId);
     List<BookCategory> createBookCategories(List<Long> categoryIds);
+
+    @Transactional
+    void updateBookCategories(Book book, List<Long> categoryIds);
+
     List<CategoryResponseDTO> getCategories();
 }

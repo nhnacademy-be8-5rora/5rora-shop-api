@@ -7,7 +7,6 @@ import store.aurora.book.dto.aladin.AladinBookRequestDto;
 import java.util.List;
 
 public interface AladinBookService {
-    @Transactional
     void saveBookFromApi(AladinBookRequestDto bookDto, List<MultipartFile> additionalImages);
 
     List<AladinBookRequestDto> searchBooks(String query, String queryType, String searchTarget, int start);

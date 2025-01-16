@@ -63,7 +63,7 @@ class TagServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         Tag tag = new Tag("java");
         Page<Tag> tagPage = new PageImpl<>(Collections.singletonList(tag));
-        when(tagRepository.findAllByOrderByIdAsc(pageable)).thenReturn(tagPage);
+        when(tagRepository.findAllByOrderById(pageable)).thenReturn(tagPage);
 
         Page<TagResponseDto> result = tagService.getTags(pageable);
 
@@ -72,7 +72,7 @@ class TagServiceImplTest {
                 .extracting(TagResponseDto::getName)
                 .containsExactly("java");
 
-        verify(tagRepository, times(1)).findAllByOrderByIdAsc(pageable);
+        verify(tagRepository, times(1)).findAllByOrderById(pageable);
     }
 
     @Test

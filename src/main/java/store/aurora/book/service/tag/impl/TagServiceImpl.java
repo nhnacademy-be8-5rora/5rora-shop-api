@@ -38,7 +38,7 @@ public class TagServiceImpl implements TagService {
 
     @Override
     public Page<TagResponseDto> getTags(Pageable pageable) {
-        return tagRepository.findAllByOrderByIdAsc(pageable)
+        return tagRepository.findAllByOrderById(pageable)
                 .map(this::mapToResponseDto);
     }
 
@@ -101,6 +101,7 @@ public class TagServiceImpl implements TagService {
                 })
                 .toList();
     }
+
 
     @Transactional(readOnly = true)
     @Override

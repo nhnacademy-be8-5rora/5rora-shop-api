@@ -12,6 +12,6 @@ import java.util.Optional;
 public interface TagRepository extends JpaRepository<Tag, Long> {
     Optional<Tag> findByName(String name);
     List<Tag> findByNameContaining(String keyword);
-    Page<Tag> findAllByOrderByIdAsc(Pageable pageable);
+    Page<Tag> findAllByOrderById(Pageable pageable);
 }
 

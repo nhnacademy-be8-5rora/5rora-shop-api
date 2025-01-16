@@ -15,10 +15,8 @@ import store.aurora.book.repository.category.BookCategoryRepository;
 import store.aurora.book.repository.category.CategoryRepository;
 import store.aurora.book.service.category.CategoryService;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -141,6 +139,37 @@ public class CategoryServiceImpl implements CategoryService {
                     return bookCategory;
                 })
                 .toList();
+    }
+
+    @Transactional
+    @Override
+    public void updateBookCategories(Book book, List<Long> categoryIds) {
+        // 현재 연결된 카테고리 ID 가져오기
+        Set<Long> currentCategoryIds = book.getBookCategories().stream()
+                .map(bookCategory -> bookCategory.getCategory().getId())
+                .collect(Collectors.toSet());
+
+        // 추가해야 할 카테고리와 제거해야 할 카테고리 계산
+        Set<Long> newCategoryIds = new HashSet<>(categoryIds);
+        Set<Long> categoriesToAdd = new HashSet<>(newCategoryIds);
+        categoriesToAdd.removeAll(currentCategoryIds);
+
+        Set<Long> categoriesToRemove = new HashSet<>(currentCategoryIds);
+        categoriesToRemove.removeAll(newCategoryIds);
+
+        // 데이터베이스에서 추가할 카테고리 조회
+        List<Category> categoriesToAddEntities = categoryRepository.findAllById(categoriesToAdd);
+
+        // 새로운 카테고리 추가
+        categoriesToAddEntities.forEach(category -> {
+            BookCategory bookCategory = new BookCategory();
+            bookCategory.setCategory(category);
+            book.addBookCategory(bookCategory);
+        });
+
+        // 기존 카테고리 중 제거
+        book.getBookCategories().removeIf(bookCategory ->
+                categoriesToRemove.contains(bookCategory.getCategory().getId()));
     }
 
     @Override
