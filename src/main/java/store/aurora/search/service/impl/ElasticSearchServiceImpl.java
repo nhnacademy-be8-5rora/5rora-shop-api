@@ -1,10 +1,14 @@
 package store.aurora.search.service.impl;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.UpdateRequest;
+import co.elastic.clients.elasticsearch.core.UpdateResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.transport.TransportException;
+import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,11 +21,15 @@ import store.aurora.book.dto.AuthorDTO;
 import store.aurora.book.dto.SearchBookDTO;
 import store.aurora.book.entity.Book;
 import store.aurora.book.entity.Like;
+import store.aurora.book.entity.category.BookCategory;
 import store.aurora.book.entity.category.Category;
 import store.aurora.book.exception.api.InvalidApiResponseException;
 import store.aurora.book.repository.BookAuthorRepository;
+import store.aurora.book.repository.BookRepository;
 import store.aurora.book.repository.BookViewRepository;
 import store.aurora.book.repository.LikeRepository;
+import store.aurora.book.repository.category.BookCategoryRepository;
+import store.aurora.book.repository.category.CategoryRepository;
 import store.aurora.book.service.BookImageService;
 import store.aurora.document.*;
 import store.aurora.review.repository.ReviewRepository;
@@ -50,7 +58,10 @@ public class ElasticSearchServiceImpl implements ElasticSearchService {
     private final BookImageService bookImageService;
     private final BookAuthorRepository bookAuthorRepository;
     private final ElasticsearchClient elasticsearchClient;
+    private final BookCategoryRepository bookCategoryRepository;
     private static final Logger USER_LOG = LoggerFactory.getLogger("user-logger");
+    private final CategoryRepository categoryRepository;
+    private final BookRepository bookRepository;
 
     @Override
     public Page<BookSearchResponseDTO> searchBooks(String type,String keyword, Pageable pageable, String userId) {
@@ -58,88 +69,162 @@ public class ElasticSearchServiceImpl implements ElasticSearchService {
         {
             return searchBooksByFullText(keyword, pageable,userId);
         }
-        return null;
+        return Page.empty();
     }
 
     private Page<BookSearchResponseDTO> searchBooksByFullText(String keyword, Pageable pageable, String userId) {
-
+        // 책 목록 조회
         List<SearchBookDTO> bookList = executeSearch(keyword, pageable);
         List<BookSearchResponseDTO> bookSearchResponseDTOList = bookList.stream()
                 .map(this::mapBookToDTO)
                 .toList();
 
-//       좋아요 상태 조회: 한 번의 쿼리로 좋아요 상태 가져오기
+        // 좋아요 상태 조회: 한 번의 쿼리로 좋아요 상태 가져오기
         List<Long> bookIds = bookList.stream()
                 .map(SearchBookDTO::getId)
                 .toList();
 
-        List<Like> likeList = likeRepository.findByUserIdAndBookIdInAndIsLikeTrue(userId, bookIds);
+        if (userId != null) {
+            List<Like> likeList = likeRepository.findByUserIdAndBookIdInAndIsLikeTrue(userId, bookIds);
 
-        //  좋아요 상태 반영: Map을 사용하여 책 ID와 좋아요 여부 매핑 N+1을 해결하기 위하여 백에서 for문으로 처리
-        Set<Long> likedBookIds = likeList.stream()
-                .map(like -> like.getBook().getId())  // Like 객체에서 Book의 ID를 가져옵니다.
-                .collect(Collectors.toSet());
+            // 좋아요 상태 반영
+            Set<Long> likedBookIds = likeList.stream()
+                    .map(like -> like.getBook().getId())
+                    .collect(Collectors.toSet());
 
-        for (BookSearchResponseDTO bookDTO : bookSearchResponseDTOList) {
-            boolean liked = likedBookIds.contains(bookDTO.getId());
-            bookDTO.setLiked(liked);  // 좋아요 상태 설정
+            bookSearchResponseDTOList.forEach(bookDTO -> bookDTO.setLiked(likedBookIds.contains(bookDTO.getId())));
         }
 
-        return new PageImpl<>(bookSearchResponseDTOList, pageable, bookList.size());
+        // Elasticsearch에서 총 결과 수를 가져오는 방법
+        long total = getTotalCount(keyword);
+
+        // 결과 반환
+        return new PageImpl<>(bookSearchResponseDTOList, pageable, total);
     }
 
     private List<SearchBookDTO> executeSearch(String keyword, Pageable pageable) {
-        int from = pageable.getPageNumber() * pageable.getPageSize();
-        int size = pageable.getPageSize();
+        int from = pageable.getPageNumber() * pageable.getPageSize();  // 시작 인덱스
+        int size = pageable.getPageSize();  // 페이지 크기
 
-        SearchRequest searchRequest= new SearchRequest.Builder()
-                .index("5rora")  // 사용할 인덱스 이름
+        // Elasticsearch 쿼리 생성
+        SearchRequest searchRequest = new SearchRequest.Builder()
+                .index("5rora")
                 .query(query -> query
                         .bool(boolQuery -> boolQuery
+                                .filter(filterQuery -> filterQuery
+                                        .term(term -> term
+                                                .field("active")
+                                                .value(true)  // active 필드가 true인 문서만 검색
+                                        )
+                                )
                                 .should(shouldQuery -> shouldQuery
                                         .match(match -> match
                                                 .field("title")
                                                 .query(keyword)
-                                                .boost(2.0F)  // title 필드에 높은 가중치 부여
+                                                .analyzer("edge_ngram_analyzer")
+                                                .boost(10.0F)
                                         )
                                 )
                                 .should(shouldQuery -> shouldQuery
                                         .match(match -> match
-                                                .field("authors.name")  // AuthorDocument.name 필드
+                                                .field("authors.name")
                                                 .query(keyword)
-                                                .boost(1.5F)  // 저자 이름에 대한 가중치
+                                                .analyzer("edge_ngram_analyzer")
+                                                .boost(1.0F)
                                         )
                                 )
                                 .should(shouldQuery -> shouldQuery
                                         .match(match -> match
-                                                .field("categories.name")  // CategoryDocument.name 필드
+                                                .field("categories.name")
                                                 .query(keyword)
-                                                .boost(1.0F)  // 카테고리 이름에 대한 가중치
+                                                .boost(1.0F)
+                                        )
+                                )
+                                .should(shouldQuery -> shouldQuery
+                                        .match(match -> match
+                                                .field("bookTags.name")
+                                                .query(keyword)
+                                                .boost(1.0F)
                                         )
                                 )
                         )
                 )
-                .from(from)
-                .size(size)
+                .from(from)  // 시작 인덱스
+                .size(size)  // 페이지 크기
                 .build();
 
         SearchResponse<SearchBookDTO> searchResponse;
         try {
             searchResponse = elasticsearchClient.search(searchRequest, SearchBookDTO.class);
         } catch (TransportException e) {
-                throw new InvalidApiResponseException("Elasticsearch 응답 디코딩 실패: " + e.getMessage());
+            throw new InvalidApiResponseException("Elasticsearch 응답 디코딩 실패: " + e.getMessage());
         } catch (IOException e) {
-            throw new InvalidApiResponseException("Elasticsearch 응답중 알 수 없는 오류 발생" );
+            throw new InvalidApiResponseException("Elasticsearch 응답중 알 수 없는 오류 발생");
         }
 
-
-
-
+        // 검색 결과에서 데이터를 추출하여 List<SearchBookDTO>로 변환
         return searchResponse.hits().hits().stream()
-                .map(Hit::source) // `BookDocument`로 변환
+                .map(Hit::source)
                 .toList();
     }
 
+    public long getTotalCount(String search) {
+        try {
+            // SearchRequest 생성
+            SearchRequest searchRequest = new SearchRequest.Builder()
+                    .index("5rora") // 인덱스 설정
+                    .query(query -> query
+                            .bool(boolQuery -> boolQuery
+                                    .filter(filterQuery -> filterQuery
+                                            .term(term -> term
+                                                    .field("active")
+                                                    .value(true)  // active 필드가 true인 문서만 검색
+                                            )
+                                    )
+                                    .should(shouldQuery -> shouldQuery
+                                            .match(match -> match
+                                                    .field("title")
+                                                    .query(search)
+                                                    .boost(10.0F)  // 제목에 높은 가중치 부여
+                                            )
+                                    )
+                                    .should(shouldQuery -> shouldQuery
+                                            .match(match -> match
+                                                    .field("authors.name")
+                                                    .query(search)
+                                                    .boost(1.0F)  // 저자 이름에 가중치 부여
+                                            )
+                                    )
+                                    .should(shouldQuery -> shouldQuery
+                                            .match(match -> match
+                                                    .field("categories.name")
+                                                    .query(search)
+                                                    .boost(1.0F)  // 카테고리에 가중치 부여
+                                            )
+                                    )
+                                    .should(shouldQuery -> shouldQuery
+                                            .match(match -> match
+                                                    .field("bookTags.name")
+                                                    .query(search)
+                                                    .boost(1.0F)  // 태그 이름에 가중치 부여
+                                            )
+                                    )
+                            )
+                    )
+                    .size(0)  // 결과 데이터는 필요 없고, 총 히트 수만 계산
+                    .trackTotalHits(tt -> tt.enabled(true)) // 총 히트 수 추적 활성화
+                    .build();
+
+            // Elasticsearch에서 쿼리 실행
+            SearchResponse<SearchBookDTO> searchResponse =
+                    elasticsearchClient.search(searchRequest, SearchBookDTO.class);
+
+            // 전체 히트 수 반환 (total 히트 수가 null이 아닌 경우만 반환)
+            return searchResponse.hits().total() != null ? searchResponse.hits().total().value() : 0;
+        } catch (IOException e) {
+            throw new InvalidApiResponseException("Elasticsearch 요청 처리 실패: " + e.getMessage());
+        }
+    }
 
 
     private BookSearchResponseDTO mapBookToDTO(SearchBookDTO book) {
@@ -178,7 +263,7 @@ public class ElasticSearchServiceImpl implements ElasticSearchService {
 
     //저장 후의 book 엔티티를 가져옴.
     @Override
-    public void saveBooks(Book book) {
+    public void saveBook(Book book) {
         // BookRequestDto -> Book 변환
         BookDocument bookDocument = convertToBookDocument(book);
 
@@ -190,6 +275,7 @@ public class ElasticSearchServiceImpl implements ElasticSearchService {
         }
     }
 
+    //entity -> bookDocument
     private BookDocument convertToBookDocument(Book book) {
         // Book의 데이터를 BookDocument로 변환
         BookDocument bookDocument = new BookDocument();
@@ -206,7 +292,7 @@ public class ElasticSearchServiceImpl implements ElasticSearchService {
         bookDocument.setExplanation(book.getExplanation());
         bookDocument.setPackaging(book.isPackaging());
         bookDocument.setPublishDate(book.getPublishDate().toString());
-
+        bookDocument.setActive(book.isActive());
         //커버이미지는 db에서 얻어옴. N+1 발생하지만 save시 한번부르기때문에 1번만 발생.
         bookDocument.setCoverImage(bookImageService.getThumbnail(book).getFilePath());
 
@@ -232,14 +318,18 @@ public class ElasticSearchServiceImpl implements ElasticSearchService {
         List<AuthorDocument> authorDTOs = bookAuthorRepository.findAuthorsByBookId(book.getId());
         bookDocument.setAuthors(authorDTOs);
 
-        // Categories 변환 (재귀적으로 부모-자식 구조 처리)
-        if (book.getBookCategories() != null && !book.getBookCategories().isEmpty()) {
-            List<CategoryDocument> categories = book.getBookCategories().stream()
-                    .map(bookCategory -> convertCategoryToDocument(bookCategory.getCategory()))
-                    .toList();
-            bookDocument.setCategories(categories);
-        }
+        // 도서 id에 해당하는 카테고리들의 id 를 반환받음.
+        List<BookCategory> bookCategory = bookCategoryRepository.findBookCategoryByBookId(book.getId());
+        List<Long> categoryIds = bookCategory.stream()
+                .map(bc -> bc.getCategory().getId())  // 'bc'는 bookCategory 리스트의 각 요소
+                .toList();
+        //위에서 가져온 카테고리 id 에 해당하는 카테고리들을 가져옴.
+        List<Category> categoryList = categoryRepository.findByIdIn(categoryIds);
+        //카테고리 doc 객체로 변환
+        List<CategoryDocument> categoryDocuments =
+                categoryList.stream().map(category -> new CategoryDocument(category.getId(),category.getName())).toList();
 
+        bookDocument.setCategories(categoryDocuments);
 
         // BookTags 변환
         if (book.getBookTags() != null && !book.getBookTags().isEmpty()) {
@@ -260,18 +350,52 @@ public class ElasticSearchServiceImpl implements ElasticSearchService {
         return bookDocument;
     }
 
-    private CategoryDocument convertCategoryToDocument(Category category) {
-        if (category == null) return null;
 
-        // 자식 카테고리 변환
-        List<CategoryDocument> childDocuments = category.getChildren().stream()
-                .map(this::convertCategoryToDocument)
+    @Override
+    public Long saveBooksNotInElasticSearch() {
+        List<Long> allBooksInDb  = bookRepository.findAll().stream().map(Book::getId).toList();
+        List<Long> allBooksInElastic= findAllBooks();
+        // allBooksInDb에서 allBooksInElastic에 없는 ID 필터링
+        List<Long> idsNotInElastic = allBooksInDb.stream()
+                .filter(id -> !allBooksInElastic.contains(id))
                 .toList();
 
-        // 현재 카테고리와 자식 설정
-        return new CategoryDocument(category.getId(), category.getName(), childDocuments);
+        List<Book> books = bookRepository.findALlByIdIn(idsNotInElastic);
+        Long count = 0L;  // Long으로 선언하여 반환 타입과 맞춤
+        for (Book book : books) {
+            try {
+                saveBook(book); // 저장 시도
+                count++; // 성공한 경우에만 카운트 증가
+            } catch (Exception e) {
+                USER_LOG.warn("책 저장 실패: {} - {}", book.getId(), e.getMessage());
+            }
+        }
+
+        return count;
     }
 
+    private List<Long> findAllBooks() {
+        try {
+            // 쿼리 생성
+            SearchRequest request = new SearchRequest.Builder()
+                    .index("5rora")
+                    .query(q -> q.matchAll(m -> m)) // match_all 쿼리
+                    .size(1000)  // 한번에 1000개 가져오기
+                    .storedFields(List.of())       // _id만 가져오기 위해 stored_fields 사용
+                    .build();
 
+            // Elasticsearch 요청 실행
+            SearchResponse<Void> response = elasticsearchClient.search(request, Void.class);
+
+            // _id 추출
+            return response.hits().hits().stream()
+                    .map(Hit::id) // Hit 객체에서 id만 추출
+                    .map(Long::parseLong) // String -> Long 변환
+                    .toList();
+
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Elasticsearch 요청 실패: " + e.getMessage(), e);
+        }
+    }
 
 }

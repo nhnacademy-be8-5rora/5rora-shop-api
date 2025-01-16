@@ -36,6 +36,7 @@ import store.aurora.search.dto.BookSearchEntityDTO;
 import store.aurora.search.dto.BookSearchResponseDTO;
 import store.aurora.search.service.ElasticSearchService;
 
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -84,9 +85,9 @@ public class BookServiceImpl implements BookService {
                 Book bookEntity = optionalBook.get();
 
                 // Elasticsearch에 저장할 수 있도록 처리
-                elasticSearchService.saveBooks(bookEntity);
+                elasticSearchService.saveBook(bookEntity);
             } else {
-                USER_LOG.warn("Book not found with id: " + book.getId());
+                USER_LOG.warn("Book not found with id: {}", book.getId());
             }
         } catch (ElasticsearchException e) {
             // Elasticsearch 관련 예외 처리
@@ -127,7 +128,25 @@ public class BookServiceImpl implements BookService {
         }
 
         // 6. 책 저장
-        bookRepository.save(book);
+        book = bookRepository.save(book);
+
+        int retryCount = 0;
+        int maxRetries = 3;
+
+        while (retryCount < maxRetries) {
+            try {
+                elasticSearchService.saveBook(book);
+                break; // 성공 시 루프 종료
+            } catch (ElasticsearchException e) {
+                retryCount++;
+                if (retryCount == maxRetries) {
+                    USER_LOG.warn("엘라스틱 서치에 데이터를 반영하는 중 실패. 최대 재시도 횟수 도달.");
+                } else {
+                    USER_LOG.info("엘라스틱 서치 저장 재시도 중: {}",retryCount + "회");
+                }
+            }
+        }
+
     }
 
     @Transactional(readOnly = true)
@@ -144,6 +163,8 @@ public class BookServiceImpl implements BookService {
                 .orElseThrow(() -> new NotFoundBookException(bookId));
         book.setActive(isActive); // 활성/비활성 상태 설정
         bookRepository.save(book);
+
+        elasticSearchService.saveBook(book);
     }
 
     @Override
@@ -283,7 +304,6 @@ public class BookServiceImpl implements BookService {
 
         return bookSearchResponseDTOPage.getContent().isEmpty() ? Optional.empty() : Optional.ofNullable(bookSearchResponseDTOPage.getContent().getFirst());
     }
-
 
     // entity -> ResponseDto
     private BookResponseDto convertToDto(Book book) {

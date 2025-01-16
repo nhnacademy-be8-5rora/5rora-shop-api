@@ -1,6 +1,5 @@
 package store.aurora.search.service.impl;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -8,7 +7,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import store.aurora.book.repository.BookRepository;
 import store.aurora.book.service.LikeService;
@@ -16,10 +14,12 @@ import store.aurora.search.dto.BookSearchEntityDTO;
 import store.aurora.search.dto.BookSearchResponseDTO;
 
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class SearchServiceImplTest {
@@ -27,356 +27,117 @@ class SearchServiceImplTest {
     @Mock
     private BookRepository bookRepository;
 
-    @InjectMocks
-    private SearchServiceImpl searchService;
-
     @Mock
     private LikeService likeService;
 
-    @BeforeEach
-    void setUp() {
+    @InjectMocks
+    private SearchServiceImpl searchService;
+
+    SearchServiceImplTest() {
         MockitoAnnotations.openMocks(this);
     }
 
-    @DisplayName("제목을 기준으로 검색할 때 데이터베이스에서 값을 가져오는 DTO(EntityDTO)를 반환해주는 DTO(ResponseDTO)로 잘 변환해주는지 확인")
     @Test
-    void findBooksByTitleWithDetails_ValidTitle_MapsToResponseDTO() {
-        // 반환받을 entityDTO 초기화
-        String title = "Example Title";
-        Pageable pageable = PageRequest.of(0, 8);
-        BookSearchEntityDTO entityDTO = new BookSearchEntityDTO.Builder()
-                .id(1L)
-                .title("Example Title")
-                .regularPrice(20000)
-                .salePrice(18000)
-                .isSale(true)
-                .publishDate(LocalDate.of(2022, 1, 1))
-                .publisherName("Example Publisher")
-                .authors("Author Name (AUTHOR)")
-                .bookImagePath("/images/example.jpg")
-                .categories("1,3")
-                .viewCount(5L)
-                .reviewCount(5)
-                .averageReviewRating(3.5)
-                .build();
+    @DisplayName("검색 키워드가 null인 경우 빈 페이지 반환")
+    void testFindBooksByKeywordWithNullKeyword() {
+        Pageable pageable = mock(Pageable.class);
+        Page<BookSearchResponseDTO> result = searchService.findBooksByKeywordWithDetails(null, "title", null, pageable);
 
-
-        Page<BookSearchEntityDTO> entityDTOPage = new PageImpl<>(Collections.singletonList(entityDTO));
-
-        when(bookRepository.findBooksByTitleWithDetails(title, pageable)).thenReturn(entityDTOPage);
-
-        // 반환값 받기
-        Page<BookSearchResponseDTO> result = searchService.findBooksByTitleWithDetails(null,title, pageable);
-
-        // 결과 검증
-        assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
-
-        BookSearchResponseDTO responseDTO = result.getContent().get(0);
-        assertThat(responseDTO.getId()).isEqualTo(1L);
-        assertThat(responseDTO.getTitle()).isEqualTo("Example Title");
-        assertThat(responseDTO.getRegularPrice()).isEqualTo(20000);
-        assertThat(responseDTO.getSalePrice()).isEqualTo(18000);
-        assertThat(responseDTO.getPublishDate()).isEqualTo(LocalDate.of(2022, 1, 1));
-        assertThat(responseDTO.getPublisherName()).isEqualTo("Example Publisher");
-        assertThat(responseDTO.getImgPath()).isEqualTo("/images/example.jpg");
-        assertThat(responseDTO.getAuthors()).hasSize(1);
-        assertThat(responseDTO.getAuthors().get(0).getName()).isEqualTo("Author Name");
-
-        verify(bookRepository, times(1)).findBooksByTitleWithDetails(title, pageable);
-    }
-
-    @DisplayName("제목이 null 일 경우 빈 페이지를 반환하는지 확인")
-    @Test
-    void findBooksByTitleWithDetails_NullOrEmptyTitle_ReturnsEmptyPage() {
-        // 값 초기화
-        String title = null;
-
-        Pageable pageable = PageRequest.of(0, 8);
-
-        // When
-        Page<BookSearchResponseDTO> resultForNull = searchService.findBooksByTitleWithDetails(null,title, pageable);
-
-        // Then
-        assertThat(resultForNull).isNotNull();
-        assertThat(resultForNull.getContent()).isEmpty();
-
-
-        // 메서드 호출 여부 확인
-        verify(bookRepository, times(0)).findBooksByTitleWithDetails(anyString(), eq(pageable));
-    }
-
-    @DisplayName("작가 이름을 기준으로 검색할 때 데이터베이스에서 값을 가져오는 DTO(EntityDTO)를 반환해주는 DTO(ResponseDTO)로 잘 변환해주는지 확인")
-    @Test
-    void findBooksByAuthorNameWithDetails_ValidName_ReturnsPageOfBooks() {
-        // 반환받을 값 초기화
-        String authorName = "Example Author";
-        Pageable pageable = PageRequest.of(0, 8);
-
-        BookSearchEntityDTO entityDTO = new BookSearchEntityDTO.Builder()
-                .id(1L)
-                .title("Example Title")
-                .regularPrice(20000)
-                .salePrice(18000)
-                .isSale(true)
-                .publishDate(LocalDate.of(2022, 1, 1))
-                .publisherName("Example Publisher")
-                .authors("Example Author (AUTHOR)") // 저자 정보는 String 형식으로 입력
-                .bookImagePath("/images/example.jpg")
-                .categories("1,2") // 카테고리 ID 리스트는 String 형식으로 입력
-                .viewCount(5L)
-                .reviewCount(5)
-                .averageReviewRating(3.5)
-                .build();
-
-        Page<BookSearchEntityDTO> entityDTOPage = new PageImpl<>(Collections.singletonList(entityDTO));
-
-        when(bookRepository.findBooksByAuthorNameWithDetails(authorName, pageable)).thenReturn(entityDTOPage);
-
-        // 반환값 받기
-        Page<BookSearchResponseDTO> result = searchService.findBooksByAuthorNameWithDetails(null,authorName, pageable);
-
-        // 결과 검증
-        assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
-
-        BookSearchResponseDTO responseDTO = result.getContent().get(0);
-        assertThat(responseDTO.getAuthors()).hasSize(1);
-        assertThat(responseDTO.getAuthors().get(0).getName()).isEqualTo("Example Author");
-
-        verify(bookRepository, times(1)).findBooksByAuthorNameWithDetails(authorName, pageable);
-    }
-
-    @DisplayName("작가 이름이 null 또는 blank일 경우 빈 페이지를 반환하는지 확인")
-    @Test
-    void findBooksByAuthorNameWithDetails_NullOrEmptyName_ReturnsEmptyPage() {
-        String authorName = null;
-        String emptyAuthorName = "";
-        Pageable pageable = PageRequest.of(0, 8);
-
-        // When
-        Page<BookSearchResponseDTO> resultForNull = searchService.findBooksByAuthorNameWithDetails(null,authorName, pageable);
-        Page<BookSearchResponseDTO> resultForEmpty = searchService.findBooksByAuthorNameWithDetails(null,emptyAuthorName, pageable);
-
-        // Then
-        assertThat(resultForNull).isNotNull();
-        assertThat(resultForNull.getContent()).isEmpty();
-
-        assertThat(resultForEmpty).isNotNull();
-        assertThat(resultForEmpty.getContent()).isEmpty();
-
-        verify(bookRepository, times(0)).findBooksByAuthorNameWithDetails(anyString(), eq(pageable));
+        assertTrue(result.isEmpty(), "키워드가 null인 경우 결과는 빈 페이지여야 합니다.");
     }
 
     @Test
-    @DisplayName("카테고리 이름으로 책의 세부사항을 가져오는지 확인")
-    void testFindBooksByCategoryNameWithDetails() {
-        // Given
+    @DisplayName("카테고리 ID로 검색: 유효한 ID인 경우 결과 반환")
+    void testFindBooksByValidCategoryId() {
+        Pageable pageable = mock(Pageable.class);
         Long categoryId = 1L;
-        Pageable pageable = PageRequest.of(0, 10); // 첫 번째 페이지, 10개의 결과
 
-        // Mock 데이터 준비
-        // Mock 데이터 준비
-        BookSearchEntityDTO mockBook1 = new BookSearchEntityDTO.Builder()
-                .id(1L)
-                .title("Book Title 1")
-                .regularPrice(1000)
-                .salePrice(800)
-                .isSale(true)
-                .publishDate(LocalDate.now())
-                .publisherName("Publisher 1")
-                .authors("Author1 (AUTHOR)")
-                .bookImagePath("imagePath1")
-                .categories("1,2")
-                .viewCount(5L)
-                .reviewCount(5)
-                .averageReviewRating(3.5)
-                .build();
+        BookSearchEntityDTO book = new BookSearchEntityDTO();
+        book.setId(1L);
+        book.setTitle("Test Book");
+        book.setRegularPrice(20000);
+        book.setSalePrice(18000);
+        book.setSale(true);
+        book.setPublishDate(LocalDate.of(2023, 1, 15));
+        book.setPublisherName("Test Publisher");
+        book.setAuthors("example author(작가)");
+        book.setCategoryIdList("1,2");
+        book.setViewCount(100L);
+        book.setReviewCount(5);
+        book.setReviewRating(4.5);
 
-        BookSearchEntityDTO mockBook2 = new BookSearchEntityDTO.Builder()
-                .id(2L)
-                .title("Book Title 2")
-                .regularPrice(1200)
-                .salePrice(1000)
-                .isSale(true)
-                .publishDate(LocalDate.now())
-                .publisherName("Publisher 2")
-                .authors("Author2 (EDITOR)")
-                .bookImagePath("imagePath2")
-                .categories("1,3")
-                .viewCount(5L)
-                .reviewCount(3)
-                .averageReviewRating(3.5)
-                .build();
+        List<BookSearchEntityDTO> books = List.of(book);
+        Page<BookSearchEntityDTO> bookPage = new PageImpl<>(books);
 
+        when(bookRepository.findBooksByCategoryWithDetails(eq(categoryId), any(Pageable.class))).thenReturn(bookPage);
 
-        // Page 객체로 Mock 데이터 설정
-        Page<BookSearchEntityDTO> mockPage = new PageImpl<>(List.of(mockBook1, mockBook2), pageable, 2);
+        Page<BookSearchResponseDTO> result = searchService.findBooksByKeywordWithDetails(null, "category", "1", pageable);
 
-        // Mocking repository의 동작
-        when(bookRepository.findBooksByCategoryWithDetails(categoryId, pageable)).thenReturn(mockPage);
-
-        // When
-        Page<BookSearchResponseDTO> result = searchService.findBooksByCategoryWithDetails(null,categoryId, pageable);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getContent()).isNotEmpty();
-        assertThat(result.getTotalElements()).isEqualTo(2); // Mock 데이터에 2개 책이 있으므로
-
-        // BookCategorySearchResponseDTO 객체가 적절히 변환되었는지 확인
-        result.getContent().forEach(book -> {
-            assertThat(book.getTitle()).isNotNull(); // 도서 제목이 비어있지 않아야 함
-            assertThat(book.getPublisherName()).isNotNull(); // 출판사 정보가 비어있지 않아야 함
-            assertThat(book.getCategoryIdList()).isNotEmpty(); // 카테고리 목록이 비어있지 않아야 함
-            assertThat(book.getCategoryIdList()).contains(categoryId); // 카테고리 이름이 포함되어야 함
-            assertThat(book.getAuthors()).isNotEmpty(); // 저자 목록이 비어있지 않아야 함
-        });
-
-        verify(bookRepository, times(1)).findBooksByCategoryWithDetails(categoryId, pageable);
+        assertFalse(result.isEmpty(), "카테고리 ID가 유효하면 결과가 반환되어야 합니다.");
+        assertEquals(1, result.getContent().size(), "결과 크기는 1이어야 합니다.");
+        assertEquals("Test Book", result.getContent().get(0).getTitle(), "결과 제목이 일치해야 합니다.");
+        verify(bookRepository, times(1)).findBooksByCategoryWithDetails(eq(categoryId), any(Pageable.class));
     }
 
-    @DisplayName("카테고리 이름이 null 또는 blank일 경우 빈 페이지를 반환하는지 확인")
     @Test
-    void findBooksByCategoryNameWithDetails_NullOrEmptyName_ReturnsEmptyPage() {
-        Long categoryId = null;
-        Pageable pageable = PageRequest.of(0, 8);
+    @DisplayName("카테고리 ID로 검색: 숫자가 아닌 경우 빈 페이지 반환")
+    void testFindBooksByCategoryIdWithInvalidFormat() {
+        Pageable pageable = mock(Pageable.class);
 
-        // When
-        Page<BookSearchResponseDTO> resultForNull = searchService.findBooksByCategoryWithDetails(null,categoryId, pageable);
+        Page<BookSearchResponseDTO> result = searchService.findBooksByKeywordWithDetails(null, "category", "invalidCategory", pageable);
 
-        // Then
-        assertThat(resultForNull).isNotNull();
-        assertThat(resultForNull.getContent()).isEmpty();
-
-
-
-        verify(bookRepository, times(0)).findBooksByCategoryWithDetails(anyLong(), eq(pageable));
+        assertTrue(result.isEmpty(), "유효하지 않은 카테고리 ID는 빈 페이지를 반환해야 합니다.");
     }
 
-    @DisplayName("userId가 null이 아닐 경우 좋아요 상태를 확인하고 DTO에 추가하는지 확인")
     @Test
-    void findBooksByTitleWithDetails_UserIdIsNotNull_CheckLikes() {
-        // Given
-        String userId = "testUser";
-        String title = "Example Title";
-        Pageable pageable = PageRequest.of(0, 8);
+    @DisplayName("저자 이름으로 검색: 결과 반환 및 좋아요 상태 확인")
+    void testFindBooksByAuthorName() {
+        Pageable pageable = mock(Pageable.class);
+        String authorName = "J.K. Rowling";
+        String userId = "user123";  // 유저 ID 설정
 
-        // Mock BookSearchEntityDTO
-        BookSearchEntityDTO entityDTO = new BookSearchEntityDTO.Builder()
+        // 책 정보 설정
+        BookSearchEntityDTO book = new BookSearchEntityDTO.Builder()
                 .id(1L)
-                .title("Example Title")
+                .title("Harry Potter and the Sorcerer's Stone")
                 .regularPrice(20000)
-                .salePrice(18000)
+                .salePrice(15000)
                 .isSale(true)
-                .publishDate(LocalDate.of(2022, 1, 1))
-                .publisherName("Example Publisher")
-                .authors("Author Name (AUTHOR)")
-                .bookImagePath("/images/example.jpg")
-                .categories("1,3")
-                .viewCount(5L)
-                .reviewCount(5)
-                .averageReviewRating(3.5)
+                .publishDate(LocalDate.of(1997, 6, 26))
+                .publisherName("Scholastic")
+                .authors("J.K. Rowling(작가)")  // 저자 문자열 설정
+                .bookImagePath("imagePath.jpg")
+                .categories("1,2,3")  // 카테고리 ID 설정
+                .viewCount(100L)
+                .reviewCount(200)
+                .averageReviewRating(4.5)
                 .build();
 
-        Page<BookSearchEntityDTO> entityDTOPage = new PageImpl<>(Collections.singletonList(entityDTO));
+        // 책 목록을 페이지로 래핑
+        List<BookSearchEntityDTO> books = List.of(book);
+        Page<BookSearchEntityDTO> bookPage = new PageImpl<>(books);
 
-        // Mocking repository behavior
-        when(bookRepository.findBooksByTitleWithDetails(title, pageable)).thenReturn(entityDTOPage);
+        // bookRepository의 findBooksByAuthorNameWithDetails 메서드 동작 설정
+        when(bookRepository.findBooksByAuthorNameWithDetails(eq(authorName), any(Pageable.class)))
+                .thenReturn(bookPage);
 
-        // When
-        Page<BookSearchResponseDTO> result = searchService.findBooksByTitleWithDetails(userId, title, pageable);
+        // likeService의 getLikedBookIds 메서드 동작 설정
+        Set<Long> likedBookIds = Set.of(1L);  // 유저가 좋아요한 책 ID 설정
+        when(likeService.getLikedBookIds(eq(userId), anyList())).thenReturn(likedBookIds);
 
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
+        // 검색 서비스 호출
+        Page<BookSearchResponseDTO> result = searchService.findBooksByKeywordWithDetails(
+                userId, "author", authorName, pageable);
 
-        BookSearchResponseDTO responseDTO = result.getContent().get(0);
-        assertThat(responseDTO.isLiked()).isFalse();
-
+        // 결과 검증
+        assertFalse(result.isEmpty(), "저자 이름이 유효하면 결과가 반환되어야 합니다.");
+        assertEquals(1, result.getContent().size(), "결과 크기는 1이어야 합니다.");
+        assertEquals("Harry Potter and the Sorcerer's Stone", result.getContent().get(0).getTitle(), "책 제목이 일치해야 합니다.");
+        assertTrue(result.getContent().get(0).isLiked(), "책에 대해 좋아요가 눌려져 있어야 합니다.");
+        verify(bookRepository, times(1)).findBooksByAuthorNameWithDetails(eq(authorName), any(Pageable.class));
+        verify(likeService, times(1)).getLikedBookIds(eq(userId), anyList());
     }
 
-    @DisplayName("userId가 null이 아닐 경우 좋아요 상태를 확인하고 DTO에 추가하는지 확인")
-    @Test
-    void findBooksByCategoryWithDetails_UserIdIsNotNull_CheckLikes() {
-        // Given
-        String userId = "testUser";
-        Long category = 1L;
-        Pageable pageable = PageRequest.of(0, 8);
 
-        // Mock BookSearchEntityDTO
-        BookSearchEntityDTO entityDTO = new BookSearchEntityDTO.Builder()
-                .id(1L)
-                .title("Example Title")
-                .regularPrice(20000)
-                .salePrice(18000)
-                .isSale(true)
-                .publishDate(LocalDate.of(2022, 1, 1))
-                .publisherName("Example Publisher")
-                .authors("Author Name (AUTHOR)")
-                .bookImagePath("/images/example.jpg")
-                .categories("1,3")
-                .viewCount(5L)
-                .reviewCount(5)
-                .averageReviewRating(3.5)
-                .build();
 
-        Page<BookSearchEntityDTO> entityDTOPage = new PageImpl<>(Collections.singletonList(entityDTO));
-
-        // Mocking repository behavior
-        when(bookRepository.findBooksByCategoryWithDetails(category, pageable)).thenReturn(entityDTOPage);
-
-        // When
-        Page<BookSearchResponseDTO> result = searchService.findBooksByCategoryWithDetails(userId, category, pageable);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
-
-        BookSearchResponseDTO responseDTO = result.getContent().get(0);
-        assertThat(responseDTO.isLiked()).isFalse();
-
-    }
-
-    @DisplayName("userId가 null이 아닐 경우 좋아요 상태를 확인하고 DTO에 추가하는지 확인")
-    @Test
-    void findBooksByAuthorWithDetails_UserIdIsNotNull_CheckLikes() {
-        // Given
-        String userId = "testUser";
-        String author = "Example name";
-        Pageable pageable = PageRequest.of(0, 8);
-
-        // Mock BookSearchEntityDTO
-        BookSearchEntityDTO entityDTO = new BookSearchEntityDTO.Builder()
-                .id(1L)
-                .title("Example Title")
-                .regularPrice(20000)
-                .salePrice(18000)
-                .isSale(true)
-                .publishDate(LocalDate.of(2022, 1, 1))
-                .publisherName("Example Publisher")
-                .authors("Author Name (AUTHOR)")
-                .bookImagePath("/images/example.jpg")
-                .categories("1,3")
-                .viewCount(5L)
-                .reviewCount(5)
-                .averageReviewRating(3.5)
-                .build();
-
-        Page<BookSearchEntityDTO> entityDTOPage = new PageImpl<>(Collections.singletonList(entityDTO));
-
-        // Mocking repository behavior
-        when(bookRepository.findBooksByAuthorNameWithDetails(author, pageable)).thenReturn(entityDTOPage);
-
-        // When
-        Page<BookSearchResponseDTO> result = searchService.findBooksByAuthorNameWithDetails(userId, author, pageable);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.getContent()).hasSize(1);
-
-        BookSearchResponseDTO responseDTO = result.getContent().get(0);
-        assertThat(responseDTO.isLiked()).isFalse();
-
-    }
 }

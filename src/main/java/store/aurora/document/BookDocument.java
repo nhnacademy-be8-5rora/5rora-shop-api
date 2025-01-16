@@ -53,4 +53,6 @@ public class BookDocument {
     private List<TagDocument> bookTags = new ArrayList<>();
 
     private List<BookImageDocument> bookImages = new ArrayList<>();
+
+    private boolean active;
 }

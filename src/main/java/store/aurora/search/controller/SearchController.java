@@ -42,7 +42,7 @@ public class SearchController {
         PageRequest pageRequest = createPageRequest(page, orderBy, orderDirection);
 
         try {
-            Page<BookSearchResponseDTO> bookSearchResponseDTOPage = handleSearchByType(userId, keyword, type, pageRequest);
+            Page<BookSearchResponseDTO> bookSearchResponseDTOPage = searchService.findBooksByKeywordWithDetails(userId, type, keyword, pageRequest);
             if (bookSearchResponseDTOPage == null || bookSearchResponseDTOPage.isEmpty()) {
                 USER_LOG.info("조회 결과가 존재하지않습니다.");
                 return ResponseEntity.noContent().build();
@@ -76,31 +76,5 @@ public class SearchController {
                 ? Sort.Order.desc(orderBy)
                 : Sort.Order.asc(orderBy);
         return PageRequest.of(page, 8, Sort.by(order));
-    }
-
-    private Page<BookSearchResponseDTO> handleSearchByType(String userId, String keyword, String type, PageRequest pageRequest) {
-        if (type == null || keyword == null) {
-            return Page.empty();
-        }
-
-        return switch (type) {
-            case "title" -> searchService.findBooksByTitleWithDetails(userId, keyword, pageRequest);
-            case "category" -> handleCategorySearch(userId, keyword, pageRequest);
-            case "author" -> searchService.findBooksByAuthorNameWithDetails(userId, keyword, pageRequest);
-            default -> Page.empty(pageRequest);
-        };
-    }
-
-    private Page<BookSearchResponseDTO> handleCategorySearch(String userId, String keyword, PageRequest pageRequest) {
-        if (keyword.isEmpty()) {
-            keyword = "0";
-        }
-        try {
-            Long categoryId = Long.valueOf(keyword);
-            return searchService.findBooksByCategoryWithDetails(userId, categoryId, pageRequest);
-        } catch (NumberFormatException e) {
-            USER_LOG.info(e.getMessage(), e);
-            return Page.empty(pageRequest);
-        }
     }
 }

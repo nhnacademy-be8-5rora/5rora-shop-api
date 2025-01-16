@@ -2,12 +2,14 @@ package store.aurora.book.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
+import lombok.Setter;
 import store.aurora.document.*;
 
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
+@Setter
 public class SearchBookDTO {
 
     private Long id;

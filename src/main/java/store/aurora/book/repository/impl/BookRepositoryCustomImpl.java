@@ -107,6 +107,7 @@ public class BookRepositoryCustomImpl extends QuerydslRepositorySupport implemen
                 .leftJoin(book.publisher, publisher)
                 .where(titleCondition)
                 .where(reviewCountCondition)
+                .where(book.active.isTrue())
                 .orderBy(orderSpecifier)
                 .groupBy(book.id, book.title, book.regularPrice, book.salePrice, book.publishDate, publisher.name)
                 .offset(pageable.getOffset())
@@ -205,6 +206,7 @@ public class BookRepositoryCustomImpl extends QuerydslRepositorySupport implemen
                 .leftJoin(bookAuthor.author, author)
                 .leftJoin(bookAuthor.authorRole, authorRole)
                 .where(whereBuilder) // 동적으로 where 조건 추가
+                .where(book.active.isTrue())
                 .groupBy(book.id, book.title, book.regularPrice, book.salePrice, book.publishDate, publisher.name)
                 .orderBy(orderSpecifier) // 동적 정렬 조건 추가
                 .offset(pageable.getOffset())
@@ -340,6 +342,7 @@ public class BookRepositoryCustomImpl extends QuerydslRepositorySupport implemen
                 .leftJoin(bookCategory).on(bookCategory.book.id.eq(book.id))
                 .leftJoin(bookCategory.category, category)
                 .where(whereBuilder) // 동적으로 where 조건 추가
+                .where(book.active.isTrue())
                 .groupBy(book.id, book.title, book.regularPrice, book.salePrice, book.publishDate, publisher.name)
                 .orderBy(orderSpecifier) // 정렬 조건 추가
                 .offset(pageable.getOffset())
@@ -583,6 +586,7 @@ public class BookRepositoryCustomImpl extends QuerydslRepositorySupport implemen
                 .leftJoin(book.publisher, publisher)
                 .where(book.id.in(bookId)) // bookId에 포함된 책만 조회
                 .where(reviewCountCondition) // reviewCountCondition을 where 절에 추가
+                .where(book.active.isTrue())
                 .groupBy(book.id, book.title, book.regularPrice, book.salePrice, book.publishDate, publisher.name)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -665,7 +669,8 @@ public class BookRepositoryCustomImpl extends QuerydslRepositorySupport implemen
     public Expression<Long> getLikeCountSubquery() {
         return JPAExpressions.select(like.count())
                 .from(like)
-                .where(like.book.id.eq(book.id));
+                .where(like.book.id.eq(book.id))
+                .where(like.isLike.eq(Boolean.TRUE));  // 수정된 부분
     }
 
     @Override

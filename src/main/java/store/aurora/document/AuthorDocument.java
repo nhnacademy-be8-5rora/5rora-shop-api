@@ -14,6 +14,8 @@ import org.springframework.data.elasticsearch.annotations.Document;
 @Document(indexName = "5rora")
 public class AuthorDocument {
 
+    private Long id;
+
     private String name;
 
     private String role;

@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface BookCategoryRepository extends JpaRepository<BookCategory, Long> {
     boolean existsByCategoryId(Long categoryId);
-
+    List<BookCategory> findBookCategoryByBookId(Long bookId);
 }
 
 

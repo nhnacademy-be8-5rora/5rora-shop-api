@@ -29,7 +29,7 @@ public class BookAuthorRepositoryCustomImpl extends QuerydslRepositorySupport im
     public List<AuthorDocument> findAuthorsByBookId(Long bookId) {
         // QueryDSL 쿼리 작성
         return queryFactory
-                .select(Projections.constructor(AuthorDocument.class, author.name, authorRole.role))
+                .select(Projections.constructor(AuthorDocument.class, author.id,author.name, authorRole.role))
                 .from(bookAuthor)
                 .leftJoin(bookAuthor.author, author) // bookAuthor와 author 조인
                 .leftJoin(bookAuthor.authorRole, authorRole) // bookAuthor와 authorRole 조인

@@ -72,7 +72,7 @@ public class AladinBookServiceImpl implements AladinBookService {
                 Book bookEntity = optionalBook.get();
 
                 // Elasticsearch에 저장할 수 있도록 처리
-                elasticSearchService.saveBooks(bookEntity);
+                elasticSearchService.saveBook(bookEntity);
             } else {
                 USER_LOG.warn("Book not found with id: " + book.getId());
             }
