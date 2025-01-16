@@ -12,6 +12,7 @@ spring:
 #    password: 3489
 #    driver-class-name: com.mysql.cj.jdbc.Driver
 
+    type: org.apache.commons.dbcp2.BasicDataSource
 
     dbcp2:
       initial-size: 5                  # 초기 커넥션 수

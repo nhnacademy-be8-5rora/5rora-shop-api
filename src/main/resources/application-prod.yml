@@ -2,21 +2,6 @@ server:
   port: 9280
 
 spring:
-  datasource:
-    url: jdbc:mysql://133.186.241.167/project_be8_5rora_db?useSSL=false&serverTimezone=UTC
-    username: project_be8_5rora
-    password: oMyVE2dkskrCXF@t
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-    dbcp2:
-      initial-size: 5                  # 초기 커넥션 수
-      max-total: 20                    # 최대 커넥션 수
-      max-idle: 10                     # 유휴 상태에서 최대 커넥션 수
-      min-idle: 5                      # 유휴 상태에서 최소 커넥션 수
-      validation-query: SELECT 1       # 연결 유효성 검사 쿼리
-      test-on-borrow: true             # 풀에서 가져올 때 유효성 검사
-      test-while-idle: true            # 유휴 상태에서 유효성 검사
-
   servlet:
     multipart:
       enabled: true

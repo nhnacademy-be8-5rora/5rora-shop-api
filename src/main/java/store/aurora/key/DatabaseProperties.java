@@ -11,9 +11,4 @@ public class DatabaseProperties {
     private String url;
     private String username;
     private String password;
-    private Integer initialSize;
-    private Integer maxTotal;
-    private Integer minIdle;
-    private Integer maxIdle;
-    private Integer maxWait;
 }
