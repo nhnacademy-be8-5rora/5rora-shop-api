@@ -59,5 +59,5 @@ public interface OrderProcessService {
      * @param paymentKey 결제 키
      * @param amount 결제 금액
      */
-    void nonUserOrderProcess(String redisOrderId, String paymentKey, int amount);
+    Long nonUserOrderProcess(String redisOrderId, String paymentKey, int amount);
 }

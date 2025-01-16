@@ -52,11 +52,12 @@ public class OrderController {
         비회원 주문 시 주문 id 값 넘겨주기 (적절한 값 찾아서)
      */
     @PostMapping("/order-complete")
-    public void orderComplete(
+    public Long orderComplete(
             @RequestBody OrderCompleteRequestDto dto
             ){
-        if(Objects.nonNull(dto.getIsGuest()) && Boolean.TRUE.equals(dto.getIsGuest()))
-            orderProcessService.nonUserOrderProcess(dto.getOrderId(), dto.getPaymentKey(), dto.getAmount());
+        if(Objects.nonNull(dto.getIsGuest()) && Boolean.TRUE.equals(dto.getIsGuest())){
+            return orderProcessService.nonUserOrderProcess(dto.getOrderId(), dto.getPaymentKey(), dto.getAmount());
+        }
         else {
             Order savedOrder = orderProcessService.userOrderProcess(dto.getOrderId(), dto.getPaymentKey(), dto.getAmount());
 
@@ -65,6 +66,8 @@ public class OrderController {
             }catch (Exception e) {
                 LOG.error("Failed to earn points: category=order, userId={}, orderId={}", savedOrder.getUser().getId(), savedOrder.getId(), e);
             }
+
+            return savedOrder.getId();
         }
     }
 }

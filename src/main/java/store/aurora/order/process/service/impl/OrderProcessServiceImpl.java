@@ -161,7 +161,7 @@ public class OrderProcessServiceImpl implements OrderProcessService {
 
     // todo: 비밀번호 passwordEncoder 적용
     @Override
-    public void nonUserOrderProcess(String redisOrderId, String paymentKey, int amount){
+    public Long nonUserOrderProcess(String redisOrderId, String paymentKey, int amount){
         OrderRequestDto orderInfo = orderInfoService.getOrderInfoFromRedis(redisOrderId);
 
         int deliveryFee = deliveryFeeService.getDeliveryFee(amount);
@@ -183,7 +183,9 @@ public class OrderProcessServiceImpl implements OrderProcessService {
                 .password(orderInfo.getNonMemberPassword())
                 .build();
 
-        saveInformationWhenOrderComplete(newOrder, paymentKey, amount, orderInfo);
+        Order saved = saveInformationWhenOrderComplete(newOrder, paymentKey, amount, orderInfo);
+
+        return saved.getId();
     }
 
     // todo: 0원 결제 처리 로직 작성
