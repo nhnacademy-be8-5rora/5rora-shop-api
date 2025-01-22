@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({DataConflictException.class, AlreadyActiveUserException.class})
-    public ResponseEntity<ErrorResponseDto> handleDataConflictExceptions(DataConflictException e) {
+    public ResponseEntity<ErrorResponseDto> handleDataConflictExceptions(RuntimeException e) {
         return createResponseEntity(e, HttpStatus.CONFLICT);
     }
 

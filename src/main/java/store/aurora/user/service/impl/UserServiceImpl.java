@@ -244,7 +244,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         Rank rankName = userRankHistoryRepository.findLatestRankNameByUserId(userId)
-                .orElseThrow(() -> new RankNotFoundException(userId));
+                .orElseThrow(() -> new RankNotFoundException("해당 등급을 찾을 수 없습니다."));
 
         return new UserInfoResponseDto(
                 user.getId(),
@@ -252,7 +252,7 @@ public class UserServiceImpl implements UserService {
                 user.getBirth(),
                 user.getPhoneNumber(),
                 user.getEmail(),
-                rankName.name()
+                rankName
         );
     }
 

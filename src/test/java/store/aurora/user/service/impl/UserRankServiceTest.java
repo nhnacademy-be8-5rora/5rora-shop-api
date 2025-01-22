@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import store.aurora.order.entity.Order;
+import store.aurora.order.entity.enums.OrderState;
 import store.aurora.order.repository.OrderDetailRepository;
 import store.aurora.user.entity.Rank;
 import store.aurora.user.entity.User;
@@ -16,7 +17,9 @@ import store.aurora.user.service.impl.UserRankService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -75,61 +78,6 @@ class UserRankServiceTest {
         assertEquals(expectedPointRate, pointRate.get());
     }
 
-//    @Test
-//    void testUpdateUserRankBasedOnOrder() {
-//        String userId = "user123";
-//        Integer pureAmount = 1000;
-//        UserRank newRank = new UserRank();
-//        newRank.setMinAmount(500);
-//        newRank.setMaxAmount(1500);
-//
-//        when(order.getUser()).thenReturn(user);
-//        when(userRankRepository.findAll()).thenReturn(List.of(newRank));
-//
-//        // Mock the calculation of pureAmount
-//        when(userRankService.calculatePureAmountForLastThreeMonths(user)).thenReturn(pureAmount);
-//
-//        userRankService.updateUserRankBasedOnOrder(order);
-//
-//        // Verify if the UserRankHistory repository is called to save the new rank
-//        verify(userRankHistoryRepository, times(1)).save(any(UserRankHistory.class));
-//    }
-//
-//    @Test
-//    void testCalculatePureAmountForLastThreeMonths() {
-//        Integer orderAmount = 1000;
-//        Integer wrapCost = 100;
-//        LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
-//        User user = new User();
-//
-//        // Mock order and order details
-//        when(user.getOrders()).thenReturn(List.of(order));
-//        when(order.getOrderTime()).thenReturn(threeMonthsAgo.plusDays(1));
-//        when(order.getOrderDetails()).thenReturn(List.of());
-//        when(orderDetailRepository.calculateTotalWrapCostByOrderId(any())).thenReturn(wrapCost);
-//
-//        // Simulate the calculation of pure amount
-//        Integer pureAmount = userRankService.calculatePureAmountForLastThreeMonths(user);
-//
-//        // Assert the value of pure amount
-//        assertEquals(orderAmount - wrapCost, pureAmount);
-//    }
-//
-//    @Test
-//    void testGetRankBasedOnAmount() {
-//        Integer pureAmount = 1000;
-//        UserRank rank = new UserRank();
-//        rank.setMinAmount(500);
-//        rank.setMaxAmount(1500);
-//
-//        when(userRankRepository.findAll()).thenReturn(List.of(rank));
-//
-//        UserRank resultRank = userRankService.getRankBasedOnAmount(pureAmount);
-//
-//        assertNotNull(resultRank);
-//        assertEquals(rank, resultRank);
-//    }
-
     @Test
     void testGetAllUserRanks() {
         // Arrange
@@ -161,4 +109,43 @@ class UserRankServiceTest {
 
         verify(userRankRepository, times(1)).findAll();
     }
+
+    @Test
+    void testUpdateUserRanks() {
+        // Arrange
+        User user1 = new User();
+        user1.setId("user123");
+        user1.setOrders(Collections.singletonList(order)); // 설정한 주문목록
+
+        User user2 = new User();
+        user2.setId("user456");
+        user2.setOrders(Collections.singletonList(order));
+
+        List<User> mockUsers = Arrays.asList(user1, user2);
+
+        UserRank rank1 = new UserRank(1L, Rank.GENERAL, 0, 1000, BigDecimal.valueOf(0.01));
+        UserRank rank2 = new UserRank(2L, Rank.PLATINUM, 1001, 5000, BigDecimal.valueOf(0.02));
+        List<UserRank> mockRanks = Arrays.asList(rank1, rank2);
+
+        when(userRepository.findAll()).thenReturn(mockUsers);
+        when(userRankRepository.findAll()).thenReturn(mockRanks);
+        when(order.getOrderTime()).thenReturn(LocalDateTime.now().minusMonths(1));  // 3개월 이내의 주문 설정
+        when(order.getState()).thenReturn(OrderState.CONFIRMED);
+        when(order.getTotalAmount()).thenReturn(500);  // 예시 순수 금액
+        when(orderDetailRepository.calculateTotalWrapCostByOrderId(anyLong())).thenReturn(50); // 예시 랩 비용
+
+        Optional<UserRankHistory> latestRankHistoryOpt = Optional.of(userRankHistory);
+        when(userRankHistoryRepository.findTopByUserIdOrderByChangedAtDesc("user123"))
+                .thenReturn(latestRankHistoryOpt);
+        when(userRankHistory.getUserRank()).thenReturn(rank1); // 기존의 등급
+
+        // Act
+        userRankService.updateUserRanks();
+
+        // Assert
+        verify(userRankHistoryRepository, times(1)).save(any(UserRankHistory.class)); // 기록이 추가된 것 확인
+        verify(userRepository, times(1)).findAll(); // 모든 사용자 조회 확인
+    }
+
+
 }

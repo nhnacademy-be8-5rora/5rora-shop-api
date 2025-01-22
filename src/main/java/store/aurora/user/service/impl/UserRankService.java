@@ -85,15 +85,6 @@ public class UserRankService {
 
     // 순수 금액을 기준으로 적합한 UserRank를 반환
     private UserRank getRankBasedOnAmount(Integer pureAmount, List<UserRank> ranks) {
-//        List<UserRank> ranks = userRankRepository.findAll();
-//
-//        for (UserRank rank : ranks) {
-//            if (pureAmount >= rank.getMinAmount() && (rank.getMaxAmount() == null || pureAmount < rank.getMaxAmount())) {
-//                return rank;
-//            }
-//        }
-//
-//        return null;  // 적합한 등급이 없으면 null 반환
         return ranks.stream()
                 .filter(rank -> pureAmount >= rank.getMinAmount() &&
                         (rank.getMaxAmount() == null || pureAmount < rank.getMaxAmount()))

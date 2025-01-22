@@ -49,8 +49,7 @@ public class ReviewController {
                                                @RequestPart(value = "files", required = false) List<MultipartFile> files,
                                                @RequestParam Long bookId,
                                                @RequestParam String userId) {
-//                                               @RequestParam Integer rating,
-//                                               @RequestParam String content) {
+
         if (files == null) { files = new ArrayList<>(); }
 
         List<MultipartFile> validFiles = files.stream()

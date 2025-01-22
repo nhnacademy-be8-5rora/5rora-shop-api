@@ -17,5 +17,5 @@ public class UserInfoResponseDto {
     private LocalDate birth;
     private String phoneNumber;
     private String email;
-    private String rankName;
+    private Rank rankName;
 }

@@ -164,13 +164,9 @@ public class ReviewService {
         existingReview.setReviewContent(request.getContent());
         existingReview.setReviewCreateAt(LocalDateTime.now());
 
-//        Book book = bookRepository.findById(bookId)
-//                .orElseThrow(() -> new BookNotFoundException(bookId));
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
-//        existingReview.setBook(book);
         existingReview.setUser(user);
 
         // 기존 이미지 삭제
