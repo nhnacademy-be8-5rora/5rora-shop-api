@@ -217,4 +217,30 @@ class CategoryControllerTest {
 
         verify(categoryService, times(1)).getAllChildrenCategories(parentId);
     }
+    @Test
+    @DisplayName("특정 부모 ID의 카테고리 조회 테스트 (GET /api/categories/{category-id})")
+    void getCategoriesByParentIdTest() throws Exception {
+        // given
+        Long parentId = 1L;
+        CategoryResponseDTO mockCategory = new CategoryResponseDTO(parentId, "부모 카테고리", null, null, 0, List.of(
+                new CategoryResponseDTO(10L, "하위 카테고리 1"),
+                new CategoryResponseDTO(11L, "하위 카테고리 2")
+        ));
+
+        when(categoryService.findById(anyLong())).thenReturn(mockCategory);
+
+        // when & then
+        mockMvc.perform(get("/api/categories/{category-id}", parentId)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(parentId))
+                .andExpect(jsonPath("$.name").value("부모 카테고리"))
+                .andExpect(jsonPath("$.children", hasSize(2)))
+                .andExpect(jsonPath("$.children[0].id").value(10L))
+                .andExpect(jsonPath("$.children[0].name").value("하위 카테고리 1"))
+                .andExpect(jsonPath("$.children[1].id").value(11L))
+                .andExpect(jsonPath("$.children[1].name").value("하위 카테고리 2"));
+
+        verify(categoryService, times(1)).findById(anyLong());
+    }
 }

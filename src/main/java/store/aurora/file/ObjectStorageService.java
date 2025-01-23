@@ -30,6 +30,7 @@ public class ObjectStorageService {
     private static final String AUTH_HEADER = "X-Auth-Token";  // SonarQube 경고 해결
 
 
+
     public String uploadObject(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ObjectStorageException("파일 업로드 실패: 업로드할 파일이 비어 있거나 존재하지 않습니다.", HttpStatus.BAD_REQUEST);

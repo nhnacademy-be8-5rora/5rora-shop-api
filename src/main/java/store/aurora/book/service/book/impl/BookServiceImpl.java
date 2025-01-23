@@ -165,6 +165,7 @@ public class BookServiceImpl implements BookService {
     public Book getBookById(Long bookId) {
         return findBookById(bookId);
     }
+
     @Override
     @Transactional(readOnly = true)
     public BookDetailsDto getBookDetails(Long bookId) {

@@ -18,6 +18,9 @@ public class AuthorParser {
 
 
     public List<ParsedAuthorDto> parseAuthors(String authorsString) {
+        if (authorsString == null || authorsString.trim().isEmpty()) {
+            return Collections.emptyList(); // null 또는 빈 문자열이면 빈 리스트 반환
+        }
         List<ParsedAuthorDto> parsedAuthors = new ArrayList<>();
         List<String> pendingAuthors = new ArrayList<>();
         String currentRole = null;

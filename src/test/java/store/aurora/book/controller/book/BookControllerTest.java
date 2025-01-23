@@ -1,6 +1,5 @@
 package store.aurora.book.controller.book;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,12 +13,16 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MultipartFile;
+import store.aurora.book.dto.AuthorDTO;
 import store.aurora.book.dto.aladin.*;
 import store.aurora.book.dto.category.CategoryResponseDTO;
 import store.aurora.book.service.book.BookService;
+import store.aurora.search.dto.BookSearchResponseDTO;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -300,6 +303,87 @@ class BookControllerTest {
 
         verify(bookService, times(1)).updateBookActivation(bookId, false);
     }
+
+    @Test
+    @DisplayName("유저가 좋아요 누른 책 리스트 반환 테스트")
+    void getBooksByLikeTest() throws Exception {
+        // given
+        String userId = "test-user";
+        int pageNum = 1;
+        PageRequest pageable = PageRequest.of(0, 8);
+
+        Page<BookSearchResponseDTO> bookPage = getBookSearchResponseDTOPage(pageable);
+
+        when(bookService.getBooksByLike(eq(userId), any(PageRequest.class))).thenReturn(bookPage);
+
+        // when & then
+        mockMvc.perform(get("/api/books/my-like-books")
+                        .header("X-USER-ID", userId)
+                        .param("pageNum", String.valueOf(pageNum)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[0].title").value("책 제목1"))
+                .andExpect(jsonPath("$.content[0].publisherName").value("출판사1"))
+                .andExpect(jsonPath("$.content[0].authors[0].name").value("작가1"))
+                .andExpect(jsonPath("$.content[0].liked").value(true))
+                .andExpect(jsonPath("$.content[1].title").value("책 제목2"))
+                .andExpect(jsonPath("$.content[1].publisherName").value("출판사2"))
+                .andExpect(jsonPath("$.content[1].authors[0].name").value("작가2"))
+                .andExpect(jsonPath("$.content[1].liked").value(false));
+
+        verify(bookService, times(1)).getBooksByLike(eq(userId), any(PageRequest.class));
+    }
+
+    private static Page<BookSearchResponseDTO> getBookSearchResponseDTOPage(PageRequest pageable) {
+        List<BookSearchResponseDTO> mockBooks = List.of(
+                new BookSearchResponseDTO(1L, "책 제목1", 15000, 12000, LocalDate.of(2024, 1, 10),
+                        "출판사1", "img1.jpg", List.of(new AuthorDTO("작가1", "저자")),
+                        List.of(10L, 20L), 500L, 25, 4.5, true, true),
+
+                new BookSearchResponseDTO(2L, "책 제목2", 18000, 14000, LocalDate.of(2023, 11, 5),
+                        "출판사2", "img2.jpg", List.of(new AuthorDTO("작가2", "역자")),
+                        List.of(30L, 40L), 800L, 40, 4.8, false, false)
+        );
+
+        return new PageImpl<>(mockBooks, pageable, mockBooks.size());
+    }
+
+    @Test
+    @DisplayName("직전 달 가장 많이 팔린 책 반환 테스트 (책이 있는 경우)")
+    void getMostSoldBooksByPreviousMonthTest() throws Exception {
+        // given
+        BookSearchResponseDTO mockBook = new BookSearchResponseDTO(3L, "베스트셀러", 20000, 18000, LocalDate.of(2024, 1, 1),
+                "베스트출판사", "best_img.jpg", List.of(new AuthorDTO("베스트 작가", "저자")),
+                List.of(50L), 1000L, 150, 4.9, false, true);
+
+        when(bookService.findMostSoldByLastMonth()).thenReturn(Optional.of(mockBook));
+
+        // when & then
+        mockMvc.perform(get("/api/books/most-sold"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("베스트셀러"))
+                .andExpect(jsonPath("$.publisherName").value("베스트출판사"))
+                .andExpect(jsonPath("$.authors[0].name").value("베스트 작가"))
+                .andExpect(jsonPath("$.reviewCount").value(150))
+                .andExpect(jsonPath("$.reviewRating").value(4.9));
+
+        verify(bookService, times(1)).findMostSoldByLastMonth();
+    }
+
+    @Test
+    @DisplayName("직전 달 가장 많이 팔린 책 반환 테스트 (책이 없는 경우)")
+    void getMostSoldBooksByPreviousMonthNotFoundTest() throws Exception {
+        // given
+        when(bookService.findMostSoldByLastMonth()).thenReturn(Optional.empty());
+
+        // when & then
+        mockMvc.perform(get("/api/books/most-sold"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("책을 찾을 수 없습니다."));
+
+        verify(bookService, times(1)).findMostSoldByLastMonth();
+    }
+
     private BookDetailDto createMockBookDetail(Long bookId) {
         BookDetailDto bookDetailDto = new BookDetailDto();
         bookDetailDto.setTitle("도서 제목");

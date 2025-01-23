@@ -1,74 +1,109 @@
 package store.aurora.file;
 
+import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
-import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ObjectStorageServiceTest {
 
+    @Mock private RestTemplate restTemplate;
+    @Mock private TokenManager tokenManager;
+    @Mock private MultipartFile mockFile;
+
     @InjectMocks
     private ObjectStorageService objectStorageService;
 
-    @Mock
-    private RestTemplate restTemplate;
-
-    @Mock
-    private TokenManager tokenManager;
-
-    @Value("${nhncloud.storage.url}")
-    private String storageUrl = "http://mock-storage.com";
-
-    @Value("${nhncloud.storage.container}")
-    private String containerName = "mock-container";
-
-    private MockMultipartFile mockFile;
+    private static final String STORAGE_URL = "https://storage.example.com";
+    private static final String CONTAINER_NAME = "test-container";
 
     @BeforeEach
     void setUp() {
-        mockFile = new MockMultipartFile("file", "test.jpg", "image/jpeg", "test image content".getBytes());
-    }
+        ReflectionTestUtils.setField(objectStorageService, "storageUrl", "https://storage.example.com");
+        ReflectionTestUtils.setField(objectStorageService, "containerName", "test-container");    }
 
     @Test
-    void testUploadObject_FileIsEmpty() {
-        MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.jpg", "image/jpeg", new byte[0]);
+    @DisplayName("uploadObject - 파일이 null 또는 비어 있으면 예외 발생")
+    void uploadObject_ShouldThrowException_WhenFileIsNullOrEmpty() {
+        when(mockFile.isEmpty()).thenReturn(true);
 
-        ObjectStorageException exception = assertThrows(ObjectStorageException.class, () -> {
-            objectStorageService.uploadObject(emptyFile);
-        });
+        assertThatThrownBy(() -> objectStorageService.uploadObject(null))
+                .isInstanceOf(ObjectStorageException.class)
+                .hasMessageContaining("파일 업로드 실패");
 
-        assertEquals("파일 업로드 실패: 업로드할 파일이 비어 있거나 존재하지 않습니다.", exception.getMessage());
+        assertThatThrownBy(() -> objectStorageService.uploadObject(mockFile))
+                .isInstanceOf(ObjectStorageException.class)
+                .hasMessageContaining("파일 업로드 실패");
     }
 
+
+
     @Test
-    void testUploadObjectFromUrl_InvalidUrl() {
-        String invalidUrl = "";
+    @DisplayName("uploadObjectFromUrl - null 또는 빈 URL이면 예외 발생")
+    void uploadObjectFromUrl_ShouldThrowException_WhenUrlIsNullOrEmpty() {
+        assertThatThrownBy(() -> objectStorageService.uploadObjectFromUrl(null))
+                .isInstanceOf(ObjectStorageException.class)
+                .hasMessageContaining("유효하지 않은 이미지 URL");
 
-        ObjectStorageException exception = assertThrows(ObjectStorageException.class, () -> {
-            objectStorageService.uploadObjectFromUrl(invalidUrl);
-        });
-
-        assertEquals("파일 업로드 실패: 유효하지 않은 이미지 URL입니다.", exception.getMessage());
+        assertThatThrownBy(() -> objectStorageService.uploadObjectFromUrl(""))
+                .isInstanceOf(ObjectStorageException.class)
+                .hasMessageContaining("유효하지 않은 이미지 URL");
     }
 
+
+
     @Test
-    void testDeleteObject_EmptyUrl() {
+    @DisplayName("deleteObject - null 또는 빈 URL이면 동작하지 않음")
+    void deleteObject_ShouldDoNothing_WhenUrlIsNullOrEmpty() {
+        objectStorageService.deleteObject(null);
         objectStorageService.deleteObject("");
+
         verify(restTemplate, never()).execute(any(URI.class), eq(HttpMethod.DELETE), any(), any());
+    }
+
+  
+
+    @Test
+    @DisplayName("generateUniqueFileName - 고유한 파일명이 생성됨")
+    void generateUniqueFileName_ShouldReturnUniqueName() {
+        // Given
+        String originalFilename = "test.jpg";
+
+        // When
+        String generatedFileName = objectStorageService.generateUniqueFileName(originalFilename);
+
+        // Then
+        assertThat(generatedFileName).contains(".");
+        assertThat(FilenameUtils.getExtension(generatedFileName)).isEqualTo("jpg");
+    }
+
+    @Test
+    @DisplayName("generatePublicUrl - 올바른 URL이 생성됨")
+    void generatePublicUrl_ShouldReturnCorrectUrl() {
+        // Given
+        String objectName = UUID.randomUUID().toString() + ".jpg";
+
+        // When
+        String publicUrl = objectStorageService.generatePublicUrl(objectName);
+
+        // Then
+        assertThat(publicUrl).isEqualTo(STORAGE_URL + "/" + CONTAINER_NAME + "/" + objectName);
     }
 }

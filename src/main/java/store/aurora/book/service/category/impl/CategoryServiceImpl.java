@@ -87,6 +87,7 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryRepository.findByParentIsNull(pageable)
                 .map(this::mapToResponseDTO);
     }
+
     @Transactional(readOnly = true)
     @Override
     public List<CategoryResponseDTO> getAllRootCategories() {
@@ -114,20 +115,16 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public CategoryResponseDTO findById(Long categoryId) {
-        Optional<Category> category = categoryRepository.findById(categoryId);
-        CategoryResponseDTO categoryDTO = null;
-        if(category.isPresent()) {
-            Category categoryEntity = category.get();
-            categoryDTO = new CategoryResponseDTO(
-                    categoryEntity.getId(),
-                    categoryEntity.getName(),
-                    categoryEntity.getParent() != null ? categoryEntity.getParent().getId() : null,
-                    categoryEntity.getParent() != null ? categoryEntity.getParent().getName() : null,
-                    categoryEntity.getDepth(),
-                    convertChildrenToResponseDTO(categoryEntity.getChildren())
-            );
-        }
-        return categoryDTO;
+        Category category = findCategoryByIdOrThrow(categoryId);
+
+        return new CategoryResponseDTO(
+                category.getId(),
+                category.getName(),
+                category.getParent() != null ? category.getParent().getId() : null,
+                category.getParent() != null ? category.getParent().getName() : null,
+                category.getDepth(),
+                convertChildrenToResponseDTO(category.getChildren())
+        );
     }
 
     @Transactional

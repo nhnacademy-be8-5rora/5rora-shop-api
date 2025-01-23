@@ -52,7 +52,7 @@ public class ElasticSearchRepositoryImpl implements ElasticSearchRepositoryCusto
     public static final String CATEGORIES_NAME = "categories.name";
     public static final String ACTIVE ="active";
     public static final String INDEX ="5rora";
-    public static final String SCORE = "return _score >= 20.0 ? _score : 0;";
+    public static final String SCORE = "return _score >= 0.5 ? _score : 0;";
 
     private SearchRequest buildSearchRequest(String field, String keyword, int from, int size) {
         return new SearchRequest.Builder()
@@ -86,7 +86,7 @@ public class ElasticSearchRepositoryImpl implements ElasticSearchRepositoryCusto
                                         )
                                 )
                                 .boostMode(FunctionBoostMode.Replace) // 기존 점수를 대체
-                                .minScore(20.0)  // 점수가 20 이상인 문서만 검색
+                                .minScore(0.5)  // 점수가 20 이상인 문서만 검색
                         )
                 )
                 .from(from) // 시작 인덱스
@@ -182,7 +182,7 @@ public class ElasticSearchRepositoryImpl implements ElasticSearchRepositoryCusto
                                             )
                                     )
                                     .boostMode(FunctionBoostMode.Replace) // 기존 점수를 대체
-                                    .minScore(20.0)  // 점수가 20 이상인 문서만 검색
+                                    .minScore(0.5)  // 점수가 20 이상인 문서만 검색
                             )
                     )
                     .size(0) // 결과 데이터는 필요 없고, 총 히트 수만 계산
@@ -287,7 +287,7 @@ public class ElasticSearchRepositoryImpl implements ElasticSearchRepositoryCusto
                                         )
                                 )
                                 .boostMode(FunctionBoostMode.Replace) // 기존 점수 대신 새 점수를 사용
-                                .minScore(20.0)  // 점수가 20 이상인 문서만 검색
+                                .minScore(0.5)  // 점수가 20 이상인 문서만 검색
                         )
                 )
                 .from(from)  // 시작 인덱스
@@ -373,7 +373,7 @@ public class ElasticSearchRepositoryImpl implements ElasticSearchRepositoryCusto
                                             )
                                     )
                                     .boostMode(FunctionBoostMode.Replace) // 기존 점수 대신 스크립트 점수 사용
-                                    .minScore(20.0)  // 점수가 20 이상인 문서만 검색
+                                    .minScore(0.5)  // 점수가 20 이상인 문서만 검색
                             )
                     )
                     .size(0)  // 결과 데이터는 필요 없고, 총 히트 수만 계산

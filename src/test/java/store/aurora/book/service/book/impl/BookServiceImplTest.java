@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 import java.time.LocalDate;
 import java.util.*;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
 
+import store.aurora.book.dto.BookInfoDTO;
 import store.aurora.book.dto.aladin.AladinBookRequestDto;
 import store.aurora.book.dto.aladin.BookRequestDto;
 import store.aurora.book.dto.aladin.BookResponseDto;
@@ -28,6 +30,7 @@ import store.aurora.book.exception.book.BookNotFoundException;
 import store.aurora.book.exception.book.IsbnAlreadyExistsException;
 import store.aurora.book.mapper.BookMapper;
 import store.aurora.book.repository.book.BookRepository;
+import store.aurora.book.repository.image.BookImageRepository;
 import store.aurora.book.service.author.BookAuthorService;
 import store.aurora.book.service.image.BookImageService;
 import store.aurora.search.service.ElasticSearchService;
@@ -41,6 +44,10 @@ class BookServiceImplTest {
     private BookImageService bookImageService;
     @Mock
     private BookAuthorService bookAuthorService;
+
+    @Mock
+    private BookImageRepository bookImageRepository;
+
     @Mock
     private ElasticSearchService elasticSearchService;
     @Mock
@@ -235,5 +242,62 @@ class BookServiceImplTest {
 
         verify(bookImageService, times(1)).deleteImages(deleteImageIds);
     }
+
+
+    @Test
+    @DisplayName("책 조회 성공 테스트")
+    void getBookById_success() {
+        when(bookRepository.findById(anyLong())).thenReturn(Optional.of(book));
+
+        Book result = bookService.getBookById(1L);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTitle()).isEqualTo("테스트 책");
+        verify(bookRepository, times(1)).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("책 조회 실패 테스트 - 존재하지 않는 책")
+    void getBookById_fail() {
+        when(bookRepository.findById(anyLong())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bookService.getBookById(1L))
+                .isInstanceOf(BookNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("책 정보 조회 성공 테스트")
+    void getBookInfo_success() {
+        List<Long> bookIds = List.of(1L);
+        when(bookRepository.findAllById(bookIds)).thenReturn(List.of(book));
+        when(bookImageRepository.findByBook(any())).thenReturn(Collections.emptyList());
+
+        List<BookInfoDTO> result = bookService.getBookInfo(bookIds);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result.get(0).getTitle()).isEqualTo("테스트 책");
+    }
+
+    @Test
+    @DisplayName("책 정보 조회 실패 테스트 - 빈 리스트 입력")
+    void getBookInfo_fail() {
+        List<Long> bookIds = Collections.emptyList();
+        when(bookRepository.findAllById(bookIds)).thenReturn(Collections.emptyList());
+
+        List<BookInfoDTO> result = bookService.getBookInfo(bookIds);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 책 ID 입력 시 예외 발생")
+    void notExistThrow_fail() {
+        when(bookRepository.existsById(anyLong())).thenReturn(false);
+
+        assertThatThrownBy(() -> bookService.notExistThrow(1L))
+                .isInstanceOf(BookNotFoundException.class);
+    }
+
+
 
 }

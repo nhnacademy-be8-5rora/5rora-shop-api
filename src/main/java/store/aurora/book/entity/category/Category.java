@@ -59,4 +59,11 @@ public class Category {
                 .map(BookCategory::getBook)
                 .toList();
     }
+    public Category(String name, Category parent, Integer depth) {
+        this.name = name;
+        this.parent = parent;
+        this.depth = depth;
+
+    }
 }
+
