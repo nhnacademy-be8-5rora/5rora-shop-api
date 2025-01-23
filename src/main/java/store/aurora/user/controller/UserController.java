@@ -140,4 +140,12 @@ public class UserController {
                                 @RequestBody LocalDateTime lastLogin) {
         userService.updateLastLogin(userId, lastLogin);
     }
+
+    // 회원정보 수정
+    @PutMapping("/{userId}")
+    public ResponseEntity<Map<String, String>> updateUser(@PathVariable String userId,
+                                        @RequestBody UserUpdateRequestDto request) {
+        userService.updateUser(userId, request);
+        return ResponseEntity.ok(Map.of("message", "회원정보가 수정되었습니다."));
+    }
 }

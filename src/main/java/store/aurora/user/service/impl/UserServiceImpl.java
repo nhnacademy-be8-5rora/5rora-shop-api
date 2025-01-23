@@ -6,10 +6,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import store.aurora.user.dto.SignUpRequest;
-import store.aurora.user.dto.UserDetailResponseDto;
-import store.aurora.user.dto.UserInfoResponseDto;
-import store.aurora.user.dto.UserResponseDto;
+import store.aurora.user.dto.*;
 import store.aurora.user.entity.*;
 import store.aurora.user.exception.*;
 import store.aurora.user.repository.*;
@@ -20,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -246,15 +244,56 @@ public class UserServiceImpl implements UserService {
         Rank rankName = userRankHistoryRepository.findLatestRankNameByUserId(userId)
                 .orElseThrow(() -> new RankNotFoundException("해당 등급을 찾을 수 없습니다."));
 
+        List<UserRole> userRoles = userRoleRepository.findByUserId(userId);
+        List<String> roleNames = userRoles.stream()
+                .map(userRole -> userRole.getRole().getRoleName())
+                .toList();
+
         return new UserInfoResponseDto(
                 user.getId(),
                 user.getName(),
                 user.getBirth(),
                 user.getPhoneNumber(),
                 user.getEmail(),
-                rankName
+                user.getSignUpDate(),
+                rankName,
+                roleNames
         );
     }
+
+    // 회원정보 수정
+    @Override
+    @Transactional
+    public User updateUser(String userId, UserUpdateRequestDto request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        if (request.getName() != null && !request.getName().isEmpty()) {
+            user.setName(request.getName());
+        }
+        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isEmpty()) {
+            // 전화번호 중복 확인
+            if (!user.getPhoneNumber().equals(request.getPhoneNumber()) && userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+                throw new DuplicateUserException("이미 존재하는 전화번호입니다.");
+            }
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getEmail() != null && !request.getEmail().isEmpty()) {
+            // 이메일 중복 확인
+            if (!user.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+                throw new DuplicateUserException("이미 존재하는 이메일입니다.");
+            }
+            user.setEmail(request.getEmail());
+        }
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            // 비밀번호 암호화 후 저장
+            String encodedPassword = passwordEncoder.encode(request.getPassword());
+            user.setPassword(encodedPassword);
+        }
+
+        return userRepository.save(user);
+    }
+
 
     @Override
     public List<String> searchByMonth(int currentMonth) {

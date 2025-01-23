@@ -27,4 +27,9 @@ public class BookCategory {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
+    public BookCategory(Book book, Category category) {
+        this.book = book;
+        this.category = category;
+    }
+
 }

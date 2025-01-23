@@ -2,28 +2,25 @@ package store.aurora.user.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
+        import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.jupiter.api.BeforeEach;
+        import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
-import org.mockito.junit.jupiter.MockitoExtension;
+        import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import store.aurora.user.dto.SignUpRequest;
-import store.aurora.user.dto.UserDetailResponseDto;
-import store.aurora.user.dto.UserInfoResponseDto;
-import store.aurora.user.dto.UserResponseDto;
+import store.aurora.user.dto.*;
 import store.aurora.user.entity.*;
-import store.aurora.user.exception.*;
-import store.aurora.user.repository.*;
+        import store.aurora.user.exception.*;
+        import store.aurora.user.repository.*;
 
-import java.time.Clock;
+        import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -511,4 +508,94 @@ class UserServiceImplTest {
         // when & then
         assertThrows(RankNotFoundException.class, () -> userService.getUserInfo("userId"));
     }
+
+    @Test
+    @DisplayName("회원정보 수정 성공")
+    void updateUser_Success() {
+        // Given
+        String userId = "testUser";
+        UserUpdateRequestDto request = new UserUpdateRequestDto();
+        request.setName("Updated Name");
+        request.setPhoneNumber("010-9999-9999");
+        request.setEmail("updated@example.com");
+        request.setPassword("newPassword");
+
+        User user = new User(userId, "Original Name", LocalDate.of(1990, 1, 1), "010-1111-1111", "original@example.com", true);
+        user.setPassword("oldPassword");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.existsByPhoneNumber(request.getPhoneNumber())).thenReturn(false);
+        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        User updatedUser = userService.updateUser(userId, request);
+
+        // Then
+        assertNotNull(updatedUser);
+        assertEquals(request.getName(), updatedUser.getName());
+        assertEquals(request.getPhoneNumber(), updatedUser.getPhoneNumber());
+        assertEquals(request.getEmail(), updatedUser.getEmail());
+        assertTrue(passwordEncoder.matches(request.getPassword(), updatedUser.getPassword()));
+
+        verify(userRepository).findById(userId);
+        verify(userRepository).existsByPhoneNumber(request.getPhoneNumber());
+        verify(userRepository).existsByEmail(request.getEmail());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("회원정보 수정 실패 - 존재하지 않는 사용자")
+    void updateUser_UserNotFound() {
+        // Given
+        String userId = "nonexistentUser";
+        UserUpdateRequestDto request = new UserUpdateRequestDto();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(UserNotFoundException.class, () -> userService.updateUser(userId, request));
+        verify(userRepository).findById(userId);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("회원정보 수정 실패 - 중복된 전화번호")
+    void updateUser_DuplicatePhoneNumber() {
+        // Given
+        String userId = "testUser";
+        UserUpdateRequestDto request = new UserUpdateRequestDto();
+        request.setPhoneNumber("010-2222-2222");
+
+        User user = new User(userId, "Original Name", LocalDate.of(1990, 1, 1), "010-1111-1111", "original@example.com", true);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.existsByPhoneNumber(request.getPhoneNumber())).thenReturn(true);
+
+        // When & Then
+        assertThrows(DuplicateUserException.class, () -> userService.updateUser(userId, request));
+        verify(userRepository).findById(userId);
+        verify(userRepository).existsByPhoneNumber(request.getPhoneNumber());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("회원정보 수정 실패 - 중복된 이메일")
+    void updateUser_DuplicateEmail() {
+        // Given
+        String userId = "testUser";
+        UserUpdateRequestDto request = new UserUpdateRequestDto();
+        request.setEmail("duplicate@example.com");
+
+        User user = new User(userId, "Original Name", LocalDate.of(1990, 1, 1), "010-1111-1111", "original@example.com", true);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.existsByEmail(request.getEmail())).thenReturn(true);
+
+        // When & Then
+        assertThrows(DuplicateUserException.class, () -> userService.updateUser(userId, request));
+        verify(userRepository).findById(userId);
+        verify(userRepository).existsByEmail(request.getEmail());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
 }

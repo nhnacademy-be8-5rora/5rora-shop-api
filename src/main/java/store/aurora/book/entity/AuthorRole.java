@@ -19,4 +19,8 @@ public class AuthorRole {
 
     @Column(unique = true, nullable = false, length = 10)
     private String role;
+
+    public AuthorRole(String role) {
+        this.role = role;
+    }
 }

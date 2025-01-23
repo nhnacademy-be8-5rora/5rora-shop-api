@@ -59,60 +59,59 @@ public class BookRepositoryCustomTest {
         User user1 = new User("user123", "John Doe", LocalDate.of(1990, 1, 1), "20000101", "john_doe@example.com", true);
         User user2 = new User("user1234", "John Doe2", LocalDate.of(1200, 1, 1), "20000101", "john_doe@example.com", true);
 
-        entityManager.merge(user1);
-        entityManager.merge(user2);
+        entityManager.persist(user1);
+        entityManager.persist(user2);
 
         // Publisher 생성
-        Publisher publisher = new Publisher(1L, "Penguin Books");
-        entityManager.merge(publisher);
+        Publisher publisher = new Publisher("Penguin Books");
+        entityManager.persist(publisher);
 
         // Series 생성
-        Series series = new Series(1L, "test name");
-        entityManager.merge(series);
+        Series series = new Series( "test name");
+        entityManager.persist(series);
 
         // Category 생성
-        Category category1 = new Category(1L, "Example Category", null, new ArrayList<>(), 0, new ArrayList<>());
-        Category category2 = new Category(2L, "Example Category2", null, new ArrayList<>(), 0, new ArrayList<>());
-        entityManager.merge(category1);
-        entityManager.merge(category2);
+        Category category1 = new Category("Example Category", null,0);
+        Category category2 = new Category( "Example Category2", null,  0);
+        entityManager.persist(category1);
+        entityManager.persist(category2);
 
         // Book 생성
         Book book1 = new Book(
-                1L, "test title", 10000, 9000, 100, true, "1234567890123", "sample contents", "test desc", false, true,
+                 "test title", 10000, 9000, 100, true, "1234567890123", "sample contents", "test desc", false, true,
                 LocalDate.of(2024, 12, 12), publisher, series, new ArrayList<>(), new ArrayList<>(), new ArrayList<>()
         );
         Book book2 = new Book(
-                2L, "test title2", 10000, 9000, 100, true, "1234567890124", "sample contents2", "test desc2", false, true,
+               "test title2", 10000, 9000, 100, true, "1234567890124", "sample contents2", "test desc2", false, true,
                 LocalDate.of(2024, 12, 12), publisher, series, new ArrayList<>(), new ArrayList<>(), new ArrayList<>()
         );
 
-        entityManager.merge(book1);
-        entityManager.merge(book2);
+        entityManager.persist(book1);
+        entityManager.persist(book2);
 
         // BookCategory 생성
-        entityManager.merge(new BookCategory(1L, book1, category1));
-        entityManager.merge(new BookCategory(2L, book1, category2));
+        entityManager.persist(new BookCategory( book1, category1));
+        entityManager.persist(new BookCategory( book1, category2));
 
         // Author 생성
-        Author author1 = new Author(1L, "example author");
-        Author author2 = new Author(2L, "example editor");
-        entityManager.merge(author1);
-        entityManager.merge(author2);
+        Author author1 = new Author( "example author");
+        Author author2 = new Author( "example editor");
+        entityManager.persist(author1);
+        entityManager.persist(author2);
 
         // AuthorRole 생성
-        AuthorRole roleAuthor = new AuthorRole(1L, "지은이");
-        AuthorRole roleEditor = new AuthorRole(2L, "역은이");
-        entityManager.merge(roleAuthor);
-        entityManager.merge(roleEditor);
+        AuthorRole roleAuthor = new AuthorRole("지은이");
+        AuthorRole roleEditor = new AuthorRole("역은이");
+        entityManager.persist(roleAuthor);
+        entityManager.persist(roleEditor);
 
         // BookAuthors 생성
-        entityManager.merge(new BookAuthor(1L, author1, roleAuthor, book1));
-        entityManager.merge(new BookAuthor(2L, author2, roleEditor, book1));
-        entityManager.merge(new BookAuthor(3L, author2, roleAuthor, book2));
+        entityManager.persist(new BookAuthor(author1, roleAuthor, book1));
+        entityManager.persist(new BookAuthor( author2, roleEditor, book1));
+        entityManager.persist(new BookAuthor(author2, roleAuthor, book2));
 
         // Review 생성
         Review review1 = new Review();
-        review1.setId(1L);
         review1.setReviewRating(4);
         review1.setReviewContent("test contents");
         review1.setReviewCreateAt(LocalDateTime.now());
@@ -120,15 +119,14 @@ public class BookRepositoryCustomTest {
         review1.setUser(user1);
 
         Review review2 = new Review();
-        review2.setId(2L);
         review2.setReviewRating(5);
         review2.setReviewContent("test contents");
         review2.setReviewCreateAt(LocalDateTime.now());
         review2.setBook(book1);
         review2.setUser(user2);
 
-        entityManager.merge(review1);
-        entityManager.merge(review2);
+        entityManager.persist(review1);
+        entityManager.persist(review2);
 
         // Tag 생성 - BookTag 저장 전에 Tag를 먼저 저장해야 함
         Tag tag1 = new Tag("초등");
@@ -137,12 +135,12 @@ public class BookRepositoryCustomTest {
         entityManager.persist(tag2);  // persist() 사용
 
         // BookTag 생성
-        BookTag bookTag1 = new BookTag(1L, tag1, book1);
-        BookTag bookTag2 = new BookTag(2L, tag2, book1);
-        BookTag bookTag3 = new BookTag(3L, tag2, book2);
-        entityManager.merge(bookTag1);
-        entityManager.merge(bookTag2);
-        entityManager.merge(bookTag3);
+        BookTag bookTag1 = new BookTag( tag1, book1);
+        BookTag bookTag2 = new BookTag(tag2, book1);
+        BookTag bookTag3 = new BookTag( tag2, book2);
+        entityManager.persist(bookTag1);
+        entityManager.persist(bookTag2);
+        entityManager.persist(bookTag3);
         // 첫 번째 주문 추가
         Order order1 = new Order();
         order1.setUser(user1);
@@ -156,7 +154,7 @@ public class BookRepositoryCustomTest {
         order1.setDeliveryFee(0);
 
 // Order를 먼저 저장
-        order1 = entityManager.merge(order1);
+        entityManager.persist(order1);
 
 // Shipment 객체 생성 및 저장
         Shipment shipment1 = new Shipment();
@@ -177,7 +175,7 @@ public class BookRepositoryCustomTest {
         order1.addOrderDetail(orderDetail1);
 
 // OrderDetail 저장
-        entityManager.merge(orderDetail1);
+        entityManager.persist(orderDetail1);
 
 // 두 번째 주문 추가 (같은 방식으로 처리)
         Order order2 = new Order();
@@ -192,7 +190,7 @@ public class BookRepositoryCustomTest {
         order2.setDeliveryFee(0);
 
 // Order를 먼저 저장
-        order2 = entityManager.merge(order2);
+        entityManager.persist(order2);
 
 // OrderDetail 설정 및 저장
         OrderDetail orderDetail2 = new OrderDetail();
@@ -206,7 +204,7 @@ public class BookRepositoryCustomTest {
         order2.addOrderDetail(orderDetail2);
 
 // OrderDetail 저장
-        entityManager.merge(orderDetail2);
+        entityManager.persist(orderDetail2);
 
     }
 

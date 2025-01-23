@@ -1,9 +1,6 @@
 package store.aurora.user.service;
 
-import store.aurora.user.dto.SignUpRequest;
-import store.aurora.user.dto.UserDetailResponseDto;
-import store.aurora.user.dto.UserInfoResponseDto;
-import store.aurora.user.dto.UserResponseDto;
+import store.aurora.user.dto.*;
 import store.aurora.user.entity.User;
 
 import java.util.List;
@@ -23,4 +20,5 @@ public interface UserService {
     UserInfoResponseDto getUserInfo(String userId);
     List<String> searchByMonth(int currentMonth);
     void updateLastLogin(String userId, LocalDateTime lastLogin);
+    User updateUser(String userId, UserUpdateRequestDto request);
 }

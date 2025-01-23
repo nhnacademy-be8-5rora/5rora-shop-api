@@ -102,5 +102,24 @@ public class Book {
         }
         bookTags.clear();
     }
-
+    public Book(String title, int regularPrice, int salePrice, int stock, boolean isSale, String isbn, String contents,
+                String explanation, boolean packaging, boolean active, LocalDate publishDate, Publisher publisher,
+                Series series, List<BookImage> bookImages, List<BookCategory> bookCategories, List<BookTag> bookTags) {
+        this.title = title;
+        this.regularPrice = regularPrice;
+        this.salePrice = salePrice;
+        this.stock = stock;
+        this.isSale = isSale;
+        this.isbn = isbn;
+        this.contents = contents;
+        this.explanation = explanation;
+        this.packaging = packaging;
+        this.active = active;
+        this.publishDate = publishDate;
+        this.publisher = publisher;
+        this.series = series;
+        this.bookImages = bookImages != null ? bookImages : new ArrayList<>();
+        this.bookCategories = bookCategories != null ? bookCategories : new ArrayList<>();
+        this.bookTags = bookTags != null ? bookTags : new ArrayList<>();
+    }
 }

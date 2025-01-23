@@ -12,9 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import store.aurora.point.entity.PointPolicyCategory;
 import store.aurora.point.service.PointHistoryService;
-import store.aurora.user.dto.SignUpRequest;
-import store.aurora.user.dto.UserResponseDto;
-import store.aurora.user.dto.VerificationRequest;
+import store.aurora.user.dto.*;
+import store.aurora.user.entity.Rank;
 import store.aurora.user.entity.User;
 import store.aurora.user.exception.UserNotFoundException;
 import store.aurora.user.service.DoorayMessengerService;
@@ -22,6 +21,7 @@ import store.aurora.user.service.UserService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -221,7 +221,79 @@ class UserControllerTest {
         verify(userService,times(1)).reactivateUser(userId);
     }
 
+    @Test
+    @DisplayName("회원정보 수정 성공")
+    void testUpdateUser_Success() throws Exception {
+        // Given
+        String userId = "user123";
+        UserUpdateRequestDto request = new UserUpdateRequestDto("홍길동", "hong@example.com", "01012345678", "newPassword");
 
+        when(userService.updateUser(eq(userId), any(UserUpdateRequestDto.class)))
+                .thenReturn(new User());
 
+        // When & Then
+        mockMvc.perform(put("/api/users/{userId}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("회원정보가 수정되었습니다."));
+
+        verify(userService, times(1)).updateUser(eq(userId), any(UserUpdateRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("회원정보 조회 성공")
+    void testGetUserInfo_Success() throws Exception {
+        // Given
+        String userId = "user123";  // 요청할 userId
+        UserInfoResponseDto responseDto = new UserInfoResponseDto(
+                userId,
+                "홍길동",
+                LocalDate.of(1990, 1, 1),
+                "01012345678",
+                "hong@example.com",
+                LocalDate.of(2020, 1, 1),
+                Rank.GENERAL,
+                List.of("ROLE_USER", "ROLE_ADMIN")
+        );
+
+        // when(userService.getUserInfo(userId)) 메소드가 responseDto를 반환하도록 설정
+        when(userService.getUserInfo(eq(userId))).thenReturn(responseDto);
+
+        // When & Then
+        mockMvc.perform(get("/api/users/info")
+                        .header("userId", userId)  // 헤더에 userId 추가
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())  // 상태 코드 200 OK
+                .andExpect(jsonPath("$.id").value(userId))  // id 필드 검증
+                .andExpect(jsonPath("$.name").value("홍길동"))  // name 필드 검증
+                .andExpect(jsonPath("$.birth").value("1990-01-01"))  // birth 필드 검증
+                .andExpect(jsonPath("$.phoneNumber").value("01012345678"))  // phoneNumber 필드 검증
+                .andExpect(jsonPath("$.email").value("hong@example.com"))  // email 필드 검증
+                .andExpect(jsonPath("$.signUpDate").value("2020-01-01"))  // signUpDate 필드 검증
+                .andExpect(jsonPath("$.rankName").value("GENERAL"))  // rankName 필드 검증
+                .andExpect(jsonPath("$.roleNames").isArray())  // roleNames 필드가 배열임을 검증
+                .andExpect(jsonPath("$.roleNames[0]").value("ROLE_USER"))  // roleNames[0] 검증
+                .andExpect(jsonPath("$.roleNames[1]").value("ROLE_ADMIN"));  // roleNames[1] 검증
+
+    }
+
+    @Test
+    @DisplayName("회원정보 조회 실패: 유저를 찾을 수 없음")
+    void testGetUserInfo_UserNotFound() throws Exception {
+        // Given
+        String userId = "nonexistentUser";  // 존재하지 않는 userId
+
+        // when(userService.getUserInfo(userId)) 메소드가 예외를 던지도록 설정
+        when(userService.getUserInfo(eq(userId))).thenThrow(new UserNotFoundException("User not found with id: " + userId));
+
+        // When & Then
+        mockMvc.perform(get("/api/users/info")
+                        .header("userId", userId)  // 헤더에 userId 추가
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());  // 상태 코드 404 NOT FOUND
+
+        verify(userService, times(1)).getUserInfo(eq(userId));  // userService.getUserInfo가 한 번 호출됐는지 검증
+    }
 
 }
