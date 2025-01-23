@@ -21,22 +21,24 @@ public class WrapController {
 
     private static final String NONE_SELECT = "선택 안함";
 
-    @GetMapping("/get-wrap-list")
+    @GetMapping
     public ResponseEntity<List<WrapResponseDTO>> getWrapList(){
         List<WrapResponseDTO> wrapList = convertWrapEntityListToDtoList(wrapService.getWraps());
         return ResponseEntity.ok(wrapList);
     }
 
-    @PostMapping("/create-wrap")
-    public void createWrap(WrapResponseDTO wrap){
+    @PostMapping
+    public ResponseEntity<String> createWrap(@RequestBody WrapResponseDTO wrap){
         wrapService.createWrap(Wrap.builder()
                 .name(wrap.getName())
                 .amount(wrap.getAmount())
                 .build()
         );
+
+        return ResponseEntity.ok("Wrap 생성 완료");
     }
 
-    @PostMapping("/update-wrap")
+    @PatchMapping
     public ResponseEntity<Response> updateWrap(@RequestBody WrapResponseDTO wrap){
         wrapService.updateWrap(Wrap.builder()
                 .id(wrap.getId())
@@ -48,8 +50,11 @@ public class WrapController {
         return ResponseEntity.ok().build();
     }
 
-    @DeleteMapping("/delete-wrap")
-    public void deleteWrap(@P("id") Long id){
+    @DeleteMapping
+    public void deleteWrap(@RequestParam Long id){
+        if(id == -1){
+            return;
+        }
         wrapService.deleteByWrapId(id);
     }
 
@@ -62,6 +67,7 @@ public class WrapController {
                         .name(NONE_SELECT)
                         .amount(0)
                         .build());
+
         for (Wrap wrap : wraps) {
             WrapResponseDTO wrapResponseDTO = WrapResponseDTO.builder()
                     .id(wrap.getId())
